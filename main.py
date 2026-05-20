@@ -5,6 +5,7 @@ import time
 
 i75 = Interstate75(display=Interstate75.DISPLAY_INTERSTATE75_64X32, color_order=Interstate75.COLOR_ORDER_RGB)
 graphics = i75.display
+graphics.set_font('bitmap8')
 
 # Colors
 SCORE = graphics.create_pen(89, 6, 200)
@@ -13,25 +14,24 @@ TIMER = graphics.create_pen(255, 255, 255)
 RIGHT = graphics.create_pen(0,255,0)
 LEFT = graphics.create_pen(255,0,0)
 
-# Buttons
-B_LEFT_WEAPON = 1
-B_RIGHT_WEAPON = 0
-
 # Config
-DOUBLE_LOCKOUT = 40  # milliseconds
+# Lockout is in milliseconds
+DOUBLE_LOCKOUT = 40  
 WIDTH = 64
 HEIGHT = 32
 SCORE_PADDING = 5
 CLOCK_ENABLED = True
 
+# Pin setup - Change pin numbers here if needed
+WEAPON_LEFT = Pin(21, Pin.IN, Pin.PULL_UP)
+WEAPON_RIGHT = Pin(19, Pin.IN, Pin.PULL_UP)
+BELL_LEFT = Pin(26, Pin.IN, Pin.PULL_UP)
+BELL_RIGHT = Pin(27, Pin.IN, Pin.PULL_UP)
+
+# Text related constants
 W_HALF = WIDTH // 2
 W_FORTH = WIDTH // 4
 W_EIGHTH = WIDTH // 8
-
-graphics.set_font('bitmap8')
-
-BUTTON_LEFT = Pin(21, Pin.IN, Pin.PULL_UP)
-BUTTON_RIGHT = Pin(19, Pin.IN, Pin.PULL_UP)
 
 left_score = 0
 right_score = 0
@@ -52,7 +52,7 @@ class ButtonPress:
         pass
     
     def get_button(self, button_num):
-        return self.left if button_num is B_LEFT_WEAPON else self.right
+        return self.left if button_num is WEAPON_LEFT else self.right
 
 def check_buttons(left, right) -> ButtonPress:
     return ButtonPress(not left.value(), not right.value())
@@ -96,15 +96,15 @@ while True:
     clock_x = (WIDTH - graphics.measure_text(clock, 1)) // 2
     right_x = WIDTH - graphics.measure_text(right_num, 1) - SCORE_PADDING
 
-    pressed = check_buttons(BUTTON_LEFT, BUTTON_RIGHT)
+    pressed = check_buttons(WEAPON_LEFT, WEAPON_RIGHT)
     double = pressed.left and pressed.right
     any_pressed = pressed.left or pressed.right
 
     if any_pressed and not double:
-        waiting_for = B_LEFT_WEAPON if pressed.right else B_RIGHT_WEAPON 
+        waiting_for = WEAPON_LEFT if pressed.right else WEAPON_RIGHT
         start = time.ticks_ms()
         while True:
-            hit = check_buttons(BUTTON_LEFT, BUTTON_RIGHT).get_button(waiting_for)
+            hit = check_buttons(WEAPON_LEFT, WEAPON_RIGHT).get_button(waiting_for)
             # If a double was hit, register it
             if hit:
                 double = True
