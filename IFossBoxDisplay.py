@@ -4,14 +4,14 @@ you want to handle some functionality, you have to implement these methods.
 """
 class IFossBoxDisplay:
     @property
-    def width(self) -> int:
+    def width(self):
         raise NotImplementedError
 
     @property
-    def height(self) -> int:
+    def height(self):
         raise NotImplementedError
 
-    def draw_rect(self, x, y, w, h, color):
+    def fill_rect(self, x, y, w, h, color):
         raise NotImplementedError
 
     def draw_text(self, text, x, y, color, scale=1):
