@@ -22,3 +22,15 @@ class IFossBoxDisplay:
 
     def update(self):
         raise NotImplementedError
+
+    def weapon_left(self, pin):
+        raise NotImplementedError
+
+    def weapon_right(self, pin):
+        raise NotImplementedError
+
+    def bell_left(self, pin):
+        raise NotImplementedError
+
+    def bell_right(self, pin):
+        raise NotImplementedError
