@@ -1,0 +1,102 @@
+import Utils
+import time
+import Config
+
+class FossBox:
+    def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
+        self.disp = disp
+        self.weapon_left = weapon_left
+        self.weapon_right = weapon_right
+        self.bell_left = bell_left
+        self.bell_right = bell_right
+
+        self.width = self.disp.width
+        self.height = self.disp.height
+        self.half = self.width // 2
+        self.forth = self.width // 4
+        self.eighth = self.width // 8
+
+        self.left_score = 0
+        self.right_score = 0
+        self.clock_seconds = Config.CLOCK_SECONDS
+        self.clock = Utils.format_clock(self.clock_seconds)
+        self.last_tick = Utils.ticks_ms()
+
+    def check(self):
+        return self.weapon_left() and not self.bell_right(), self.weapon_right() and not self.bell_left(), self.bell_left(), self.bell_right()
+
+    def clear_lights(self):
+        self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+        self.disp.update()
+
+    def clear_clock(self):
+        tw = self.disp.measure_text(self.clock, 1)
+        x = (self.width - tw) // 2
+        self.disp.fill_rect(x, self.forth, tw, self.eighth, Config.BLACK)
+        self.disp.update()
+
+    def clear_score(self, score, side):
+        text = str(score)
+        w = self.disp.measure_text(text, 1)
+        x = Config.SIDE_PADDING if side == 'left' else self.width - w - Config.SIDE_PADDING
+        self.disp.fill_rect(x, self.forth + Config.TOP_PADDING, w, self.eighth, Config.BLACK)
+        self.disp.update()
+
+    def run(self):
+        while True:
+            left_valid, right_valid, left_bell, right_bell = self.check()
+            double = left_valid and right_valid
+            any_valid = left_valid or right_valid
+            any_bell = left_bell or right_bell
+
+            if any_bell:
+                if left_bell:
+                    self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
+                if right_bell:
+                    self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
+            self.disp.update()
+            self.clear_lights()
+
+            if any_valid and not double:
+                waiting_for = 'left' if right_valid else 'right'
+                start = Utils.ticks_ms()
+                while True:
+                    left, right, _, _ = self.check()
+                    if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
+                        double = True
+                        break
+
+                    if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
+                        break
+
+            if any_valid:
+                if left_valid or double:
+                    self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
+                    self.left_score += 1
+                if right_valid or double:
+                    self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
+                    self.right_score += 1
+
+                self.disp.update()
+                time.sleep(Config.ILLUM_TIME)
+                self.last_tick = Utils.ticks_ms()
+                self.clear_lights()
+                self.clear_score(self.left_score, 'left')
+                self.clear_score(self.right_score, 'right')
+
+            if Config.CLOCK_ENABLED and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
+                self.clear_clock()
+                self.clock_seconds -= 1
+                self.last_tick = Utils.ticks_add(self.last_tick, 1000)
+                self.clock = Utils.format_clock(self.clock_seconds)
+                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
+                self.disp.draw_text(self.clock, clock_x, self.forth, Config.TIMER_COLOR)
+
+            if Config.SCORE_ENABLED:
+                left_num = str(self.left_score)
+                right_num = str(self.right_score)
+                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
+                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+
+            self.disp.update()

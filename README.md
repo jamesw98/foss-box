@@ -29,14 +29,16 @@ Install [mpremote](https://docs.micropython.org/en/latest/reference/mpremote.htm
 pip install mpremote
 ```
 
-Then from the project directory:
+Then from the project directory, copy everything to the board (first time only — creates `lib/`):
 
 ```
-mpremote mkdir lib
-mpremote cp boot.py :boot.py
-mpremote cp main.py :main.py
-mpremote cp lib/interstate75.py :lib/interstate75.py
-mpremote cp lib/pimoroni.py :lib/pimoroni.py
+mpremote mkdir lib + cp src/boot.py :boot.py + cp src/main.py :main.py + cp src/FossBox.py :FossBox.py + cp src/IFossBoxDisplay.py :IFossBoxDisplay.py + cp src/PimoroniI75.py :PimoroniI75.py + cp src/Utils.py :Utils.py + cp src/Config.py :Config.py + cp lib/interstate75.py :lib/interstate75.py + cp lib/pimoroni.py :lib/pimoroni.py
+```
+
+To update files on an already-configured board:
+
+```
+mpremote cp src/boot.py :boot.py + cp src/main.py :main.py + cp src/FossBox.py :FossBox.py + cp src/IFossBoxDisplay.py :IFossBoxDisplay.py + cp src/PimoroniI75.py :PimoroniI75.py + cp src/Utils.py :Utils.py + cp src/Config.py :Config.py + cp lib/interstate75.py :lib/interstate75.py + cp lib/pimoroni.py :lib/pimoroni.py
 ```
 
 The board will run `main.py` automatically on power-up.
