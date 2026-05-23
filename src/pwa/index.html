@@ -301,6 +301,7 @@
   <script>
     const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
     const RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+    const TX_UUID      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e';
 
     const CMD = {
       TIMER_START: 0x01,
@@ -311,9 +312,12 @@
       RIGHT_DEC:   0x06,
     };
 
+    const EVT_STATE_SYNC = 0x10;
+
     const CLOCK_START_SECONDS = 180;
 
     let rxChar = null;
+    let txChar = null;
     let device = null;
     let timerInterval = null;
     let seconds = CLOCK_START_SECONDS;
@@ -353,6 +357,7 @@
         $connect.classList.remove('connected');
         document.body.classList.add('controls-disabled');
         rxChar = null;
+        txChar = null;
         stopLocalTimer();
         seconds = CLOCK_START_SECONDS;
         $timerDisp.textContent = fmt(seconds);
@@ -390,6 +395,19 @@
       timerInterval = null;
     }
 
+    function onBoxNotify(event) {
+      const data = new Uint8Array(event.target.value.buffer);
+      if (data[0] === EVT_STATE_SYNC) {
+        leftScore  = data[1];
+        rightScore = data[2];
+        seconds    = (data[3] << 8) | data[4];
+        $leftScore.textContent  = leftScore;
+        $rightScore.textContent = rightScore;
+        $timerDisp.textContent  = fmt(seconds);
+        stopLocalTimer();
+      }
+    }
+
     $connect.addEventListener('click', async () => {
       if (device && device.gatt.connected) {
         device.gatt.disconnect();
@@ -406,7 +424,10 @@
 
         const server  = await device.gatt.connect();
         const service = await server.getPrimaryService(SERVICE_UUID);
-        rxChar        = await service.getCharacteristic(RX_UUID);
+        rxChar = await service.getCharacteristic(RX_UUID);
+        txChar = await service.getCharacteristic(TX_UUID);
+        await txChar.startNotifications();
+        txChar.addEventListener('characteristicvaluechanged', onBoxNotify);
 
         setConnected(true);
       } catch (e) {

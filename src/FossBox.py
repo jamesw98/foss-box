@@ -133,6 +133,12 @@ class FossBox:
                     self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
                     self.right_score += 1
 
+                self.clock_running = False
+                if self.bt:
+                    hi = (self.clock_seconds >> 8) & 0xFF
+                    lo = self.clock_seconds & 0xFF
+                    self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
+
                 self.disp.update()
                 time.sleep(Config.ILLUM_TIME)
                 self.last_tick = Utils.ticks_ms()
