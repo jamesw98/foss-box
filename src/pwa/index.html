@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>FossBox Remote</title>
+  <link rel="manifest" href="./manifest.json">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #0f0f1a;
+      --surface:    #1a1a2e;
+      --border:     #2a2a4a;
+      --text:       #e8e8f0;
+      --muted:      #666680;
+      --left:       #e53e3e;
+      --left-dim:   #7a1e1e;
+      --right:      #38a169;
+      --right-dim:  #1a4a30;
+      --blue:       #4299e1;
+      --blue-dim:   #1a3a5c;
+      --timer-bg:   #16213e;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 16px;
+      gap: 16px;
+      min-height: 100%;
+    }
+
+    /* ── Header ── */
+    header {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: var(--text);
+    }
+
+    #status-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    #status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+
+    #status-badge.connected #status-dot { background: #68d391; }
+    #status-badge.connected { color: #68d391; }
+
+    /* ── Connect button ── */
+    #btn-connect {
+      width: 100%;
+      max-width: 480px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 2px solid var(--blue);
+      background: var(--blue-dim);
+      color: var(--blue);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+    }
+
+    #btn-connect:active { opacity: 0.75; }
+    #btn-connect.connected {
+      border-color: var(--muted);
+      background: transparent;
+      color: var(--muted);
+    }
+
+    #no-bt-warning {
+      width: 100%;
+      max-width: 480px;
+      padding: 12px 16px;
+      background: #3d1a00;
+      border: 1px solid #a04000;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      color: #ffaa44;
+      display: none;
+    }
+
+    /* ── Timer card ── */
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 16px;
+    }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+
+    #timer-display {
+      font-size: 3.5rem;
+      font-weight: 800;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.04em;
+      color: var(--text);
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .timer-controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    .timer-controls button {
+      flex: 1;
+      padding: 14px 8px;
+      border-radius: 12px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .timer-controls button:active { opacity: 0.7; }
+
+    #btn-start {
+      background: #276749;
+      color: #9ae6b4;
+    }
+
+    #btn-stop {
+      background: #742a2a;
+      color: #feb2b2;
+    }
+
+    /* ── Score cards ── */
+    .scores {
+      width: 100%;
+      max-width: 480px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .score-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .score-card.left  { border-top: 3px solid var(--left); }
+    .score-card.right { border-top: 3px solid var(--right); }
+
+    .score-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    .score-card.left  .score-label { color: var(--left); }
+    .score-card.right .score-label { color: var(--right); }
+
+    .score-num {
+      font-size: 3.5rem;
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .score-card.left  .score-num { color: var(--left); }
+    .score-card.right .score-num { color: var(--right); }
+
+    .score-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .score-btns button {
+      padding: 14px 0;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.4rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      line-height: 1;
+    }
+
+    .score-btns button:active { opacity: 0.6; }
+
+    .score-card.left  .btn-inc { background: var(--left);     color: #fff; }
+    .score-card.left  .btn-dec { background: var(--left-dim); color: var(--left); }
+    .score-card.right .btn-inc { background: var(--right);     color: #fff; }
+    .score-card.right .btn-dec { background: var(--right-dim); color: var(--right); }
+
+    /* disabled state when not connected */
+    .controls-disabled button:not(#btn-connect) {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body class="controls-disabled">
+
+  <header>
+    <h1>FossBox Remote</h1>
+    <div id="status-badge">
+      <div id="status-dot"></div>
+      <span id="status-text">Disconnected</span>
+    </div>
+  </header>
+
+  <div id="no-bt-warning">
+    Web Bluetooth is not available. Use Chrome on Android, or Chrome/Edge on desktop (served over HTTPS or localhost).
+  </div>
+
+  <button id="btn-connect">Connect to FossBox</button>
+
+  <div class="card">
+    <div class="card-label">Timer</div>
+    <div id="timer-display">3:00</div>
+    <div class="timer-controls">
+      <button id="btn-start">▶ Start</button>
+      <button id="btn-stop">■ Stop</button>
+    </div>
+  </div>
+
+  <div class="scores">
+    <div class="score-card left">
+      <div class="score-label">Left</div>
+      <div class="score-num" id="left-score">0</div>
+      <div class="score-btns">
+        <button class="btn-inc" id="left-inc">+</button>
+        <button class="btn-dec" id="left-dec">−</button>
+      </div>
+    </div>
+    <div class="score-card right">
+      <div class="score-label">Right</div>
+      <div class="score-num" id="right-score">0</div>
+      <div class="score-btns">
+        <button class="btn-inc" id="right-inc">+</button>
+        <button class="btn-dec" id="right-dec">−</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
+    const RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e';
+
+    const CMD = {
+      TIMER_START: 0x01,
+      TIMER_STOP:  0x02,
+      LEFT_INC:    0x03,
+      LEFT_DEC:    0x04,
+      RIGHT_INC:   0x05,
+      RIGHT_DEC:   0x06,
+    };
+
+    const CLOCK_START_SECONDS = 180;
+
+    let rxChar = null;
+    let device = null;
+    let timerInterval = null;
+    let seconds = CLOCK_START_SECONDS;
+    let leftScore = 0;
+    let rightScore = 0;
+
+    // ── UI refs ──
+    const $connect    = document.getElementById('btn-connect');
+    const $statusBadge = document.getElementById('status-badge');
+    const $statusText  = document.getElementById('status-text');
+    const $timerDisp  = document.getElementById('timer-display');
+    const $leftScore  = document.getElementById('left-score');
+    const $rightScore = document.getElementById('right-score');
+    const $noBt       = document.getElementById('no-bt-warning');
+
+    if (!navigator.bluetooth) {
+      $noBt.style.display = 'block';
+      $connect.disabled = true;
+      $connect.textContent = 'Bluetooth Unavailable';
+    }
+
+    function fmt(s) {
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    function setConnected(connected) {
+      if (connected) {
+        $statusBadge.classList.add('connected');
+        $statusText.textContent = 'Connected';
+        $connect.textContent = 'Disconnect';
+        $connect.classList.add('connected');
+        document.body.classList.remove('controls-disabled');
+      } else {
+        $statusBadge.classList.remove('connected');
+        $statusText.textContent = 'Disconnected';
+        $connect.textContent = 'Connect to FossBox';
+        $connect.classList.remove('connected');
+        document.body.classList.add('controls-disabled');
+        rxChar = null;
+        stopLocalTimer();
+      }
+    }
+
+    async function sendCmd(cmd) {
+      if (!rxChar) return;
+      try {
+        const buf = new Uint8Array([cmd]);
+        if (rxChar.properties.writeWithoutResponse) {
+          await rxChar.writeValueWithoutResponse(buf);
+        } else {
+          await rxChar.writeValue(buf);
+        }
+      } catch (e) {
+        console.warn('BLE write failed:', e);
+      }
+    }
+
+    function startLocalTimer() {
+      if (timerInterval) return;
+      timerInterval = setInterval(() => {
+        if (seconds > 0) {
+          seconds--;
+          $timerDisp.textContent = fmt(seconds);
+        } else {
+          stopLocalTimer();
+        }
+      }, 1000);
+    }
+
+    function stopLocalTimer() {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+
+    $connect.addEventListener('click', async () => {
+      if (device && device.gatt.connected) {
+        device.gatt.disconnect();
+        return;
+      }
+      try {
+        $connect.textContent = 'Connecting…';
+        $connect.disabled = true;
+        device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'FossBox' }],
+          optionalServices: [SERVICE_UUID],
+        });
+        device.addEventListener('gattserverdisconnected', () => setConnected(false));
+
+        const server  = await device.gatt.connect();
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        rxChar        = await service.getCharacteristic(RX_UUID);
+
+        setConnected(true);
+      } catch (e) {
+        setConnected(false);
+        if (e.name !== 'NotFoundError') {
+          $noBt.textContent = `Connection failed: ${e.message}`;
+          $noBt.style.display = 'block';
+          setTimeout(() => { $noBt.style.display = 'none'; }, 5000);
+        }
+      } finally {
+        $connect.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-start').addEventListener('click', async () => {
+      await sendCmd(CMD.TIMER_START);
+      startLocalTimer();
+    });
+
+    document.getElementById('btn-stop').addEventListener('click', async () => {
+      await sendCmd(CMD.TIMER_STOP);
+      stopLocalTimer();
+    });
+
+    document.getElementById('left-inc').addEventListener('click', async () => {
+      await sendCmd(CMD.LEFT_INC);
+      $leftScore.textContent = ++leftScore;
+    });
+
+    document.getElementById('left-dec').addEventListener('click', async () => {
+      if (leftScore === 0) return;
+      await sendCmd(CMD.LEFT_DEC);
+      $leftScore.textContent = --leftScore;
+    });
+
+    document.getElementById('right-inc').addEventListener('click', async () => {
+      await sendCmd(CMD.RIGHT_INC);
+      $rightScore.textContent = ++rightScore;
+    });
+
+    document.getElementById('right-dec').addEventListener('click', async () => {
+      if (rightScore === 0) return;
+      await sendCmd(CMD.RIGHT_DEC);
+      $rightScore.textContent = --rightScore;
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js');
+    }
+  </script>
+</body>
+</html>

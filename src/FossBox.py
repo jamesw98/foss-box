@@ -2,6 +2,9 @@ import Utils
 import time
 import Config
 
+if Config.BLUETOOTH_ENABLED:
+    import Bluetooth
+
 class FossBox:
     def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
         self.disp = disp
@@ -21,6 +24,15 @@ class FossBox:
         self.clock_seconds = Config.CLOCK_SECONDS
         self.clock = Utils.format_clock(self.clock_seconds)
         self.last_tick = Utils.ticks_ms()
+        self.clock_running = Config.CLOCK_ENABLED
+
+        self.bt = None
+        self._bt_was_connected = False
+        if Config.BLUETOOTH_ENABLED:
+            try:
+                self.bt = Bluetooth.BLEReceiver()
+            except Exception as e:
+                print("BLE init failed:", e)
 
     def check(self):
         return self.weapon_left() and not self.bell_right(), self.weapon_right() and not self.bell_left(), self.bell_left(), self.bell_right()
@@ -36,14 +48,58 @@ class FossBox:
         self.disp.update()
 
     def clear_score(self, score, side):
+        if score < 0:
+            return
         text = str(score)
         w = self.disp.measure_text(text, 1)
         x = Config.SIDE_PADDING if side == 'left' else self.width - w - Config.SIDE_PADDING
         self.disp.fill_rect(x, self.forth + Config.TOP_PADDING, w, self.eighth, Config.BLACK)
         self.disp.update()
 
+    def draw_bt_indicator(self):
+        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BT_COLOR)
+        self.disp.update()
+
+    def clear_bt_indicator(self):
+        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BLACK)
+        self.disp.update()
+
+    def handle_bt_cmd(self, cmd):
+        if cmd == Bluetooth.CMD_TIMER_START:
+            self.clock_running = True
+            self.last_tick = Utils.ticks_ms()
+        elif cmd == Bluetooth.CMD_TIMER_STOP:
+            self.clock_running = False
+        elif cmd == Bluetooth.CMD_LEFT_INC:
+            self.clear_score(self.left_score, 'left')
+            self.left_score += 1
+        elif cmd == Bluetooth.CMD_LEFT_DEC:
+            if self.left_score > 0:
+                self.clear_score(self.left_score, 'left')
+                self.left_score -= 1
+        elif cmd == Bluetooth.CMD_RIGHT_INC:
+            self.clear_score(self.right_score, 'right')
+            self.right_score += 1
+        elif cmd == Bluetooth.CMD_RIGHT_DEC:
+            if self.right_score > 0:
+                self.clear_score(self.right_score, 'right')
+                self.right_score -= 1
+
     def run(self):
         while True:
+            if self.bt:
+                cmd = self.bt.poll()
+                if cmd is not None:
+                    self.handle_bt_cmd(cmd)
+
+                now_connected = self.bt.connected
+                if now_connected != self._bt_was_connected:
+                    self._bt_was_connected = now_connected
+                    if now_connected:
+                        self.draw_bt_indicator()
+                    else:
+                        self.clear_bt_indicator()
+
             left_valid, right_valid, left_bell, right_bell = self.check()
             double = left_valid and right_valid
             any_valid = left_valid or right_valid
@@ -81,10 +137,10 @@ class FossBox:
                 time.sleep(Config.ILLUM_TIME)
                 self.last_tick = Utils.ticks_ms()
                 self.clear_lights()
-                self.clear_score(self.left_score, 'left')
-                self.clear_score(self.right_score, 'right')
+                self.clear_score(self.left_score - 1, 'left')
+                self.clear_score(self.right_score - 1, 'right')
 
-            if Config.CLOCK_ENABLED and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
+            if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
                 self.clear_clock()
                 self.clock_seconds -= 1
                 self.last_tick = Utils.ticks_add(self.last_tick, 1000)
