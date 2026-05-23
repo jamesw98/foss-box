@@ -1,4 +1,10 @@
 <!DOCTYPE html>
+
+<!--
+  I am a backend developer, UI code is my enemy.
+  This was all Claude, so sorry if any of this is shitty.
+-->
+
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -348,6 +354,8 @@
         document.body.classList.add('controls-disabled');
         rxChar = null;
         stopLocalTimer();
+        seconds = CLOCK_START_SECONDS;
+        $timerDisp.textContent = fmt(seconds);
       }
     }
 
@@ -424,6 +432,8 @@
     });
 
     document.getElementById('left-inc').addEventListener('click', async () => {
+      await sendCmd(CMD.TIMER_STOP);
+      stopLocalTimer();
       await sendCmd(CMD.LEFT_INC);
       $leftScore.textContent = ++leftScore;
     });
@@ -435,6 +445,8 @@
     });
 
     document.getElementById('right-inc').addEventListener('click', async () => {
+      await sendCmd(CMD.TIMER_STOP);
+      stopLocalTimer();
       await sendCmd(CMD.RIGHT_INC);
       $rightScore.textContent = ++rightScore;
     });

@@ -24,10 +24,10 @@ class FossBox:
         self.clock_seconds = Config.CLOCK_SECONDS
         self.clock = Utils.format_clock(self.clock_seconds)
         self.last_tick = Utils.ticks_ms()
-        self.clock_running = Config.CLOCK_ENABLED
+        self.clock_running = False
 
         self.bt = None
-        self._bt_was_connected = False
+        self.bt_was_connected = False
         if Config.BLUETOOTH_ENABLED:
             try:
                 self.bt = Bluetooth.BLEReceiver()
@@ -93,8 +93,8 @@ class FossBox:
                     self.handle_bt_cmd(cmd)
 
                 now_connected = self.bt.connected
-                if now_connected != self._bt_was_connected:
-                    self._bt_was_connected = now_connected
+                if now_connected != self.bt_was_connected:
+                    self.bt_was_connected = now_connected
                     if now_connected:
                         self.draw_bt_indicator()
                     else:
@@ -145,6 +145,8 @@ class FossBox:
                 self.clock_seconds -= 1
                 self.last_tick = Utils.ticks_add(self.last_tick, 1000)
                 self.clock = Utils.format_clock(self.clock_seconds)
+
+            if Config.CLOCK_ENABLED:
                 clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
                 self.disp.draw_text(self.clock, clock_x, self.forth, Config.TIMER_COLOR)
 

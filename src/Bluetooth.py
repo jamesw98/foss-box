@@ -8,9 +8,9 @@ IRQ_CENTRAL_DISCONNECT = 2
 IRQ_GATTS_WRITE = 3
 
 SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
-RX_UUID      = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
-RX_CHAR      = (RX_UUID, bluetooth.FLAG_WRITE | bluetooth.FLAG_WRITE_NO_RESPONSE)
-SERVICE      = (SERVICE_UUID, (RX_CHAR,))
+RX_UUID = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+RX_CHAR = (RX_UUID, bluetooth.FLAG_WRITE | bluetooth.FLAG_WRITE_NO_RESPONSE)
+SERVICE = (SERVICE_UUID, (RX_CHAR,))
 
 DEVICE_NAME = "FossBox"
 
@@ -47,21 +47,25 @@ class BLEReceiver:
 
         handles = self.ble.gatts_register_services((SERVICE,))
         self._rx_handle = handles[0][0]
-        print("BLE: registered, rx_handle =", self._rx_handle)
+        if Config.BLUETOOTH_DEBUG:
+            print("BLE: registered, rx_handle =", self._rx_handle)
 
         name = f"{DEVICE_NAME}_{Config.BLUETOOTH_ID}"
         self._adv_payload = build_adv_payload(name)
-        print("BLE: adv payload len =", len(self._adv_payload), "name =", name)
+        if Config.BLUETOOTH_DEBUG:
+            print("BLE: adv payload len =", len(self._adv_payload), "name =", name)
 
         self._advertise()
 
     def irq(self, event, data):
         if event == IRQ_CENTRAL_CONNECT:
             self._connected = True
-            print("BLE: connected")
+            if Config.BLUETOOTH_DEBUG:
+                print("BLE: connected")
         elif event == IRQ_CENTRAL_DISCONNECT:
             self._connected = False
-            print("BLE: disconnected, restarting adv")
+            if Config.BLUETOOTH_DEBUG:
+                print("BLE: disconnected, restarting adv")
             self._advertise()
         elif event == IRQ_GATTS_WRITE:
             conn_handle, attr_handle = data
@@ -72,7 +76,8 @@ class BLEReceiver:
 
     def _advertise(self, interval_us=100_000):
         self.ble.gap_advertise(interval_us, adv_data=self._adv_payload)
-        print("BLE: advertising")
+        if Config.BLUETOOTH_DEBUG:
+            print("BLE: advertising")
 
     def poll(self):
         if self._pending:
