@@ -9,17 +9,20 @@ IRQ_GATTS_WRITE = 3
 
 SERVICE_UUID = bluetooth.UUID("6E400001-B5A3-F393-E0A9-E50E24DCCA9E")
 RX_UUID = bluetooth.UUID("6E400002-B5A3-F393-E0A9-E50E24DCCA9E")
+TX_UUID = bluetooth.UUID("6E400003-B5A3-F393-E0A9-E50E24DCCA9E")
 RX_CHAR = (RX_UUID, bluetooth.FLAG_WRITE | bluetooth.FLAG_WRITE_NO_RESPONSE)
-SERVICE = (SERVICE_UUID, (RX_CHAR,))
+TX_CHAR = (TX_UUID, bluetooth.FLAG_NOTIFY)
+SERVICE = (SERVICE_UUID, (RX_CHAR, TX_CHAR))
 
 DEVICE_NAME = "FossBox"
 
-CMD_TIMER_START = 0x01
-CMD_TIMER_STOP  = 0x02
-CMD_LEFT_INC    = 0x03
-CMD_LEFT_DEC    = 0x04
-CMD_RIGHT_INC   = 0x05
-CMD_RIGHT_DEC   = 0x06
+CMD_TIMER_START  = 0x01
+CMD_TIMER_STOP   = 0x02
+CMD_LEFT_INC     = 0x03
+CMD_LEFT_DEC     = 0x04
+CMD_RIGHT_INC    = 0x05
+CMD_RIGHT_DEC    = 0x06
+EVT_STATE_SYNC   = 0x10
 
 def build_adv_payload(name):
     payload = bytearray()
@@ -36,8 +39,10 @@ def build_adv_payload(name):
 class BLEReceiver:
     def __init__(self):
         self._connected = False
+        self._conn_handle = None
         self._pending = []
         self._rx_handle = None
+        self._tx_handle = None
 
         self.ble = bluetooth.BLE()
         self.ble.active(True)
@@ -47,8 +52,9 @@ class BLEReceiver:
 
         handles = self.ble.gatts_register_services((SERVICE,))
         self._rx_handle = handles[0][0]
+        self._tx_handle = handles[0][1]
         if Config.BLUETOOTH_DEBUG:
-            print("BLE: registered, rx_handle =", self._rx_handle)
+            print("BLE: registered, rx_handle =", self._rx_handle, "tx_handle =", self._tx_handle)
 
         name = f"{DEVICE_NAME}_{Config.BLUETOOTH_ID}"
         self._adv_payload = build_adv_payload(name)
@@ -59,10 +65,12 @@ class BLEReceiver:
 
     def irq(self, event, data):
         if event == IRQ_CENTRAL_CONNECT:
+            self._conn_handle, _, _ = data
             self._connected = True
             if Config.BLUETOOTH_DEBUG:
-                print("BLE: connected")
+                print("BLE: connected, handle =", self._conn_handle)
         elif event == IRQ_CENTRAL_DISCONNECT:
+            self._conn_handle = None
             self._connected = False
             if Config.BLUETOOTH_DEBUG:
                 print("BLE: disconnected, restarting adv")
@@ -78,6 +86,15 @@ class BLEReceiver:
         self.ble.gap_advertise(interval_us, adv_data=self._adv_payload)
         if Config.BLUETOOTH_DEBUG:
             print("BLE: advertising")
+
+    def notify(self, data):
+        if not self._connected or self._conn_handle is None:
+            return
+        try:
+            self.ble.gatts_notify(self._conn_handle, self._tx_handle, bytes(data))
+        except Exception as e:
+            if Config.BLUETOOTH_DEBUG:
+                print("BLE: notify failed:", e)
 
     def poll(self):
         if self._pending:
