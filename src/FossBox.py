@@ -42,22 +42,21 @@ class FossBox:
         self.disp.update()
 
     def clear_clock(self):
-        tw = self.disp.measure_text(self.clock, 1)
-        x = (self.width - tw) // 2
-        self.disp.fill_rect(x, self.forth, tw, self.eighth, Config.BLACK)
+        text_width = self.disp.measure_text(self.clock, 1)
+        starting_x = (self.width - text_width) // 2
+        self.disp.fill_rect(starting_x, self.forth, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
     def clear_score(self, score, side):
         if score < 0:
             return
-        text = str(score)
-        w = self.disp.measure_text(text, 1)
-        x = Config.SIDE_PADDING if side == 'left' else self.width - w - Config.SIDE_PADDING
-        self.disp.fill_rect(x, self.forth + Config.TOP_PADDING, w, self.eighth, Config.BLACK)
+        text_width = self.disp.measure_text(str(score), 1)
+        starting_x = Config.SIDE_PADDING if side == 'left' else self.width - text_width - Config.SIDE_PADDING
+        self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
     def draw_bt_indicator(self):
-        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BT_COLOR)
+        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BT_CONNECTED_COLOR)
         self.disp.update()
 
     def clear_bt_indicator(self):
@@ -93,6 +92,7 @@ class FossBox:
 
     def run(self):
         while True:
+            # If Bluetooth is enabled, check if a command was sent.
             if self.bt:
                 cmd = self.bt.poll()
                 if cmd is not None:
@@ -106,12 +106,13 @@ class FossBox:
                     else:
                         self.clear_bt_indicator()
 
+            # Check to see if a button was pressed.
             left_valid, right_valid, left_bell, right_bell = self.check()
             double = left_valid and right_valid
             any_valid = left_valid or right_valid
-            any_bell = left_bell or right_bell
 
-            if any_bell:
+            # Display orange ground indicator when bell is pressed.
+            if left_bell or right_bell:
                 if left_bell:
                     self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
                 if right_bell:
@@ -119,6 +120,7 @@ class FossBox:
             self.disp.update()
             self.clear_lights()
 
+            # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
             if any_valid and not double:
                 waiting_for = 'left' if right_valid else 'right'
                 start = Utils.ticks_ms()
@@ -132,6 +134,7 @@ class FossBox:
                         break
 
             if any_valid:
+                # If we have any valid touches, light up the box.
                 if left_valid or double:
                     self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
                     self.left_score += 1
@@ -139,12 +142,15 @@ class FossBox:
                     self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
                     self.right_score += 1
 
+                # Stop the clock.
                 self.clock_running = False
+                # If we have BT enabled, send the clock info to the PWA.
                 if self.bt:
                     hi = (self.clock_seconds >> 8) & 0xFF
                     lo = self.clock_seconds & 0xFF
                     self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
 
+                # Update the display and score.
                 self.disp.update()
                 time.sleep(Config.ILLUM_TIME)
                 self.last_tick = Utils.ticks_ms()
@@ -152,16 +158,19 @@ class FossBox:
                 self.clear_score(self.left_score - 1, 'left')
                 self.clear_score(self.right_score - 1, 'right')
 
+            # Update the clock every second.
             if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
                 self.clear_clock()
                 self.clock_seconds -= 1
                 self.last_tick = Utils.ticks_add(self.last_tick, 1000)
                 self.clock = Utils.format_clock(self.clock_seconds)
 
+            # Show the clock if it's enabled.
             if Config.CLOCK_ENABLED:
                 clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
                 self.disp.draw_text(self.clock, clock_x, self.forth, Config.TIMER_COLOR)
 
+            # Show the scores if they're enabled.
             if Config.SCORE_ENABLED:
                 left_num = str(self.left_score)
                 right_num = str(self.right_score)
