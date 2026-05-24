@@ -64,7 +64,8 @@ class FossBox:
         self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BLACK)
         self.disp.update()
 
-    def handle_bt_cmd(self, cmd):
+    def handle_bt_cmd(self, data):
+        cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
             self.clock_running = True
             self.last_tick = Utils.ticks_ms()
@@ -84,6 +85,11 @@ class FossBox:
             if self.right_score > 0:
                 self.clear_score(self.right_score, 'right')
                 self.right_score -= 1
+        elif cmd == Bluetooth.CMD_SET_TIME and len(data) >= 3:
+            self.clock_running = False
+            self.clear_clock()
+            self.clock_seconds = (data[1] << 8) | data[2]
+            self.clock = Utils.format_clock(self.clock_seconds)
 
     def run(self):
         while True:

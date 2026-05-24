@@ -22,6 +22,7 @@ CMD_LEFT_INC     = 0x03
 CMD_LEFT_DEC     = 0x04
 CMD_RIGHT_INC    = 0x05
 CMD_RIGHT_DEC    = 0x06
+CMD_SET_TIME     = 0x07
 EVT_STATE_SYNC   = 0x10
 
 def build_adv_payload(name):
@@ -80,7 +81,7 @@ class BLEReceiver:
             if attr_handle == self._rx_handle:
                 value = self.ble.gatts_read(self._rx_handle)
                 if value:
-                    self._pending.append(value[0])
+                    self._pending.append(bytes(value))
 
     def _advertise(self, interval_us=100_000):
         self.ble.gap_advertise(interval_us, adv_data=self._adv_payload)
