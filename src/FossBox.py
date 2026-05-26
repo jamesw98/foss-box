@@ -1,9 +1,16 @@
 import Utils
 import time
 import Config
+import json
+import uos
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
+
+# MicroPython doesn't have enums apparently, sad!
+Ref = 0
+SelfRef = 1
+DumbBox = 2
 
 class FossBox:
     def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
@@ -34,36 +41,103 @@ class FossBox:
             except Exception as e:
                 print("BLE init failed:", e)
 
+        self.mode = Ref
+        self.mode_check()
+
+    """
+    Writes the current mode to runtime_config.json so it persists across reboots.
+    """
+    def save_mode(self):
+        with open("runtime_config.json", "w") as f:
+            json.dump({"mode": self.mode}, f)
+
+    """
+    Checks to runtime_config file to see what mode the box was last in. If this file doesn't exist, create it and set it
+    to the "Ref" mode.
+    """
+    def mode_check(self):
+        if "runtime_config.json" in uos.listdir():
+            with open("runtime_config.json", "rb") as f:
+                raw = f.read()
+                runtime_conf = json.loads(raw.decode("utf-8").strip())
+                self.mode = runtime_conf.get("mode", Ref)
+        else:
+            with open("runtime_config.json", "w") as f:
+                json.dump({"mode": Ref}, f)
+
+    """
+    Checks for valid touches and bell guard touches. 
+    """
     def check(self):
         return self.weapon_left() and not self.bell_right(), self.weapon_right() and not self.bell_left(), self.bell_left(), self.bell_right()
 
+    """
+    Clears the touche indicator lights. 
+    """
     def clear_lights(self):
         self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
         self.disp.update()
 
+    """
+    Clears the clock.
+    """
     def clear_clock(self):
-        tw = self.disp.measure_text(self.clock, 1)
-        x = (self.width - tw) // 2
-        self.disp.fill_rect(x, self.forth, tw, self.eighth, Config.BLACK)
+        text_width = self.disp.measure_text(self.clock, 1)
+        starting_x = (self.width - text_width) // 2
+        self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
+    """
+    Clears the left or right score.
+    """
     def clear_score(self, score, side):
         if score < 0:
             return
-        text = str(score)
-        w = self.disp.measure_text(text, 1)
-        x = Config.SIDE_PADDING if side == 'left' else self.width - w - Config.SIDE_PADDING
-        self.disp.fill_rect(x, self.forth + Config.TOP_PADDING, w, self.eighth, Config.BLACK)
+        text_width = self.disp.measure_text(str(score), 1)
+        starting_x = Config.SIDE_PADDING if side == 'left' else self.width - text_width - Config.SIDE_PADDING
+        self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
+    """
+    Draws the Bluetooth connected indicator.
+    """
     def draw_bt_indicator(self):
-        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BT_COLOR)
+        self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BT_CONNECTED_COLOR)
         self.disp.update()
 
+    """
+    Clears the Bluetooth connected indicator.
+    """
     def clear_bt_indicator(self):
-        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BLACK)
+        self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BLACK)
         self.disp.update()
 
+    """
+    Draws the Bluetooth ID in the bottom right corner. Shown until a device connects.
+    """
+    def draw_bt_id(self):
+        if not Config.BT_ID_ENABLED:
+            return
+
+        text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
+        x = self.width - text_width + 1
+        y = self.height - 6
+        self.disp.draw_text(Config.BLUETOOTH_ID, x, y, Config.BT_CONNECTED_COLOR, font='bitmap6')
+        self.disp.update()
+
+    """
+    Clears the Bluetooth ID from the bottom right corner.
+    """
+    def clear_bt_id(self):
+        text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
+        x = self.width - text_width + 1
+        y = self.height - 6
+        self.disp.fill_rect(x, y, text_width, 6, Config.BLACK)
+        self.disp.update()
+
+    """
+    Handles all the Bluetooth communication from the PWA.
+    """
     def handle_bt_cmd(self, data):
         cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
@@ -90,9 +164,21 @@ class FossBox:
             self.clear_clock()
             self.clock_seconds = (data[1] << 8) | data[2]
             self.clock = Utils.format_clock(self.clock_seconds)
+        elif cmd == Bluetooth.CMD_SET_MODE and len(data) >= 2:
+            self.mode = data[1]
+            self.save_mode()
 
-    def run(self):
+    """
+    Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
+    connected to the box. It is technically functional without a ref, but I would recommend switching to "DumbBox" mode
+    or disabling the clock and score if you don't have a ref. 
+    """
+    def run_reffed(self):
+        if self.bt:
+            self.draw_bt_id()
+
         while True:
+            # If Bluetooth is enabled, check if a command was sent.
             if self.bt:
                 cmd = self.bt.poll()
                 if cmd is not None:
@@ -102,16 +188,19 @@ class FossBox:
                 if now_connected != self.bt_was_connected:
                     self.bt_was_connected = now_connected
                     if now_connected:
+                        self.clear_bt_id()
                         self.draw_bt_indicator()
                     else:
                         self.clear_bt_indicator()
+                        self.draw_bt_id()
 
+            # Check to see if a button was pressed.
             left_valid, right_valid, left_bell, right_bell = self.check()
             double = left_valid and right_valid
             any_valid = left_valid or right_valid
-            any_bell = left_bell or right_bell
 
-            if any_bell:
+            # Display orange ground indicator when bell is pressed.
+            if left_bell or right_bell:
                 if left_bell:
                     self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
                 if right_bell:
@@ -119,6 +208,7 @@ class FossBox:
             self.disp.update()
             self.clear_lights()
 
+            # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
             if any_valid and not double:
                 waiting_for = 'left' if right_valid else 'right'
                 start = Utils.ticks_ms()
@@ -132,6 +222,7 @@ class FossBox:
                         break
 
             if any_valid:
+                # If we have any valid touches, light up the box.
                 if left_valid or double:
                     self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
                     self.left_score += 1
@@ -139,12 +230,15 @@ class FossBox:
                     self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
                     self.right_score += 1
 
+                # Stop the clock.
                 self.clock_running = False
+                # If we have BT enabled, send the clock info to the PWA.
                 if self.bt:
                     hi = (self.clock_seconds >> 8) & 0xFF
                     lo = self.clock_seconds & 0xFF
                     self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
 
+                # Update the display and score.
                 self.disp.update()
                 time.sleep(Config.ILLUM_TIME)
                 self.last_tick = Utils.ticks_ms()
@@ -152,16 +246,19 @@ class FossBox:
                 self.clear_score(self.left_score - 1, 'left')
                 self.clear_score(self.right_score - 1, 'right')
 
+            # Update the clock every second.
             if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
                 self.clear_clock()
                 self.clock_seconds -= 1
                 self.last_tick = Utils.ticks_add(self.last_tick, 1000)
                 self.clock = Utils.format_clock(self.clock_seconds)
 
+            # Show the clock if it's enabled.
             if Config.CLOCK_ENABLED:
                 clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
-                self.disp.draw_text(self.clock, clock_x, self.forth, Config.TIMER_COLOR)
+                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
 
+            # Show the scores if they're enabled.
             if Config.SCORE_ENABLED:
                 left_num = str(self.left_score)
                 right_num = str(self.right_score)
@@ -170,3 +267,19 @@ class FossBox:
                 self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
 
             self.disp.update()
+
+    """
+    TODO
+    Self-reffing main loop.
+    """
+    def run_self_reffed(self):
+        raise NotImplementedError
+
+    """
+    Runs the selected mode. 
+    """
+    def run(self):
+        if self.mode == Ref:
+            self.run_reffed()
+        elif self.mode == SelfRef:
+            self.run_self_reffed()

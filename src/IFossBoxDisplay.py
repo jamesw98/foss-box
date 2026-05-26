@@ -14,10 +14,10 @@ class IFossBoxDisplay:
     def fill_rect(self, x, y, w, h, color):
         raise NotImplementedError
 
-    def draw_text(self, text, x, y, color, scale=1):
+    def draw_text(self, text, x, y, color, scale=1, font='bitmap8'):
         raise NotImplementedError
 
-    def measure_text(self, text, scale=1):
+    def measure_text(self, text, scale=1, font='bitmap8'):
         raise NotImplementedError
 
     def update(self):

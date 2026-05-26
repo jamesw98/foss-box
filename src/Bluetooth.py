@@ -23,6 +23,7 @@ CMD_LEFT_DEC     = 0x04
 CMD_RIGHT_INC    = 0x05
 CMD_RIGHT_DEC    = 0x06
 CMD_SET_TIME     = 0x07
+CMD_SET_MODE     = 0x08
 EVT_STATE_SYNC   = 0x10
 
 def build_adv_payload(name):

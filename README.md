@@ -1,13 +1,14 @@
 # foss-box
 
-A fencing scoring machine for the [Pimoroni Interstate75W (RP2350)](https://shop.pimoroni.com/products/interstate-75) driving a 64x32 HUB75 LED matrix.
+A fencing scoring machine based on the [Pimoroni Interstate75W (RP2350)](https://shop.pimoroni.com/products/interstate-75) driving a 64x32 HUB75 LED matrix.
 
 ## Requirements
 
 - Python
-- Interstate75W (RP2350)
-- 64x32 HUB75 LED matrix panel
+- [Interstate75W (RP2350)](https://www.microcenter.com/product/694658/Interstate_75_W_(RP2350)_-_RGB_LED_Matrix_Driver_-_Board_Only)
+- [64x32 HUB75 LED matrix panel](https://www.adafruit.com/product/2278)
 - USB C cable
+- 2x epee sockets (or 4mm bannana sockets)
 
 ## Setup
 

@@ -173,31 +173,27 @@
 
     .timer-controls {
       display: flex;
-      gap: 12px;
     }
 
-    .timer-controls button {
+    #btn-timer {
       flex: 1;
-      padding: 14px 8px;
+      padding: 28px 8px;
       border-radius: 12px;
       border: none;
-      font-size: 1rem;
+      font-size: 1.6rem;
       font-weight: 700;
       cursor: pointer;
-      transition: opacity 0.15s;
-    }
-
-    .timer-controls button:active { opacity: 0.7; }
-
-    #btn-start {
+      transition: background 0.2s, color 0.2s, opacity 0.15s;
       background: #276749;
       color: #9ae6b4;
     }
 
-    #btn-stop {
+    #btn-timer.running {
       background: #742a2a;
       color: #feb2b2;
     }
+
+    #btn-timer:active { opacity: 0.7; }
 
     /* ── Score cards ── */
     .scores {
@@ -260,7 +256,7 @@
       flex: 1;
       border: none;
       border-radius: 10px;
-      font-size: 2rem;
+      font-size: 1.3rem;
       font-weight: 700;
       cursor: pointer;
       transition: opacity 0.15s;
@@ -270,7 +266,7 @@
 
     .score-btns button:active { opacity: 0.6; }
 
-    .btn-inc { flex: 2; }
+    .btn-inc { flex: 1; }
 
     .score-card.left  .btn-inc { background: var(--left);     color: #fff; }
     .score-card.left  .btn-dec { background: var(--left-dim); color: var(--left); }
@@ -282,6 +278,118 @@
       opacity: 0.3;
       pointer-events: none;
     }
+
+    /* ── Gear button ── */
+    #btn-settings {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 4px;
+      line-height: 1;
+      transition: color 0.15s;
+    }
+
+    #btn-settings:hover { color: var(--text); }
+
+    /* ── Settings modal ── */
+    #modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #modal-overlay.open { display: flex; }
+
+    #modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 24px;
+      width: calc(100% - 48px);
+      max-width: 420px;
+    }
+
+    #modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    #modal-header h2 {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+    }
+
+    #btn-modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 1.4rem;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+    }
+
+    #btn-modal-close:hover { color: var(--text); }
+
+    .setting-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+
+    .mode-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .mode-btn {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 12px;
+      border: 2px solid var(--border);
+      background: transparent;
+      color: var(--text);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .mode-btn .mode-name { display: block; }
+
+    .mode-btn .mode-desc {
+      display: block;
+      font-size: 0.75rem;
+      font-weight: 400;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .mode-btn.active {
+      border-color: var(--blue);
+      background: var(--blue-dim);
+    }
+
+    .modal-note {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-align: center;
+      margin-top: 16px;
+    }
   </style>
 </head>
 <body class="controls-disabled">
@@ -292,7 +400,33 @@
       <div id="status-dot"></div>
       <span id="status-text">Disconnected</span>
     </div>
+    <button id="btn-settings" title="Settings">⚙</button>
   </header>
+
+  <div id="modal-overlay">
+    <div id="modal">
+      <div id="modal-header">
+        <h2>Settings</h2>
+        <button id="btn-modal-close">✕</button>
+      </div>
+      <div class="setting-label">Box Mode</div>
+      <div class="mode-options">
+        <button class="mode-btn active" data-mode="0">
+          <span class="mode-name">Reffed</span>
+          <span class="mode-desc">A referee controls the timer and scores via this app.</span>
+        </button>
+        <button class="mode-btn" data-mode="1">
+          <span class="mode-name">Self-Ref</span>
+          <span class="mode-desc">Fencers manage their own scoring without a referee.</span>
+        </button>
+        <button class="mode-btn" data-mode="2">
+          <span class="mode-name">Simple</span>
+          <span class="mode-desc">Lights only — no clock or score tracking.</span>
+        </button>
+      </div>
+      <div class="modal-note">Mode takes effect on next reboot.</div>
+    </div>
+  </div>
 
   <div id="no-bt-warning">
     Web Bluetooth is not available. Use Chrome on Android, or Chrome/Edge on desktop (served over HTTPS or localhost).
@@ -305,8 +439,7 @@
     <div id="timer-display">3:00</div>
     <input id="timer-input" type="text" placeholder="M:SS">
     <div class="timer-controls">
-      <button id="btn-start">▶ Start</button>
-      <button id="btn-stop">■ Stop</button>
+      <button id="btn-timer">▶ Start</button>
     </div>
   </div>
 
@@ -342,6 +475,7 @@
       RIGHT_INC:   0x05,
       RIGHT_DEC:   0x06,
       SET_TIME:    0x07,
+      SET_MODE:    0x08,
     };
 
     const EVT_STATE_SYNC = 0x10;
@@ -355,6 +489,7 @@
     let seconds = CLOCK_START_SECONDS;
     let leftScore = 0;
     let rightScore = 0;
+    let currentMode = 0;
 
     // ── UI refs ──
     const $connect     = document.getElementById('btn-connect');
@@ -415,8 +550,21 @@
       await sendBytes([cmd]);
     }
 
+    const $btnTimer = document.getElementById('btn-timer');
+
+    function setTimerRunning(running) {
+      if (running) {
+        $btnTimer.textContent = '■ Stop';
+        $btnTimer.classList.add('running');
+      } else {
+        $btnTimer.textContent = '▶ Start';
+        $btnTimer.classList.remove('running');
+      }
+    }
+
     function startLocalTimer() {
       if (timerInterval) return;
+      setTimerRunning(true);
       timerInterval = setInterval(() => {
         if (seconds > 0) {
           seconds--;
@@ -430,6 +578,7 @@
     function stopLocalTimer() {
       clearInterval(timerInterval);
       timerInterval = null;
+      setTimerRunning(false);
     }
 
     $timerDisp.addEventListener('click', () => {
@@ -514,14 +663,14 @@
       }
     });
 
-    document.getElementById('btn-start').addEventListener('click', async () => {
-      await sendCmd(CMD.TIMER_START);
-      startLocalTimer();
-    });
-
-    document.getElementById('btn-stop').addEventListener('click', async () => {
-      await sendCmd(CMD.TIMER_STOP);
-      stopLocalTimer();
+    $btnTimer.addEventListener('click', async () => {
+      if (timerInterval) {
+        await sendCmd(CMD.TIMER_STOP);
+        stopLocalTimer();
+      } else {
+        await sendCmd(CMD.TIMER_START);
+        startLocalTimer();
+      }
     });
 
     document.getElementById('left-inc').addEventListener('click', async () => {
@@ -548,6 +697,33 @@
       if (rightScore === 0) return;
       await sendCmd(CMD.RIGHT_DEC);
       $rightScore.textContent = --rightScore;
+    });
+
+    // ── Settings modal ──
+    const $modalOverlay  = document.getElementById('modal-overlay');
+    const $btnSettings   = document.getElementById('btn-settings');
+    const $btnModalClose = document.getElementById('btn-modal-close');
+    const $modeBtns      = document.querySelectorAll('.mode-btn');
+
+    $btnSettings.addEventListener('click', () => $modalOverlay.classList.add('open'));
+    $btnModalClose.addEventListener('click', () => $modalOverlay.classList.remove('open'));
+    $modalOverlay.addEventListener('click', e => {
+      if (e.target === $modalOverlay) $modalOverlay.classList.remove('open');
+    });
+
+    function setActiveMode(mode) {
+      currentMode = mode;
+      $modeBtns.forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.mode) === mode);
+      });
+    }
+
+    $modeBtns.forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const mode = parseInt(btn.dataset.mode);
+        setActiveMode(mode);
+        await sendBytes([CMD.SET_MODE, mode]);
+      });
     });
 
     if ('serviceWorker' in navigator) {
