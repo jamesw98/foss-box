@@ -283,3 +283,13 @@ class FossBox:
             self.run_reffed()
         elif self.mode == SelfRef:
             self.run_self_reffed()
+        elif self.mode == DumbBox:
+            # Python lets me do this? Wacky.
+            Config.SCORE_ENABLED = False
+            Config.CLOCK_ENABLED = False
+            Config.BT_ID_ENABLED = False
+            self.run_reffed()
+        else:
+            import random
+            self.disp.draw_text(random.choice(Config.EASTER_EGG_QUOTES), 0, 0, Config.LEFT_COLOR, font="bitmap6")
+            self.disp.update()
