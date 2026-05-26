@@ -39,9 +39,12 @@ BT_CONNECTED_COLOR = (0, 80, 255)
 """
 Bluetooth Config
 """
+# Bluetooth box ID. The box will appear as "FossBox_<id>" in the PWA Bluetooth menu. This can *technically* be anything
+# but, it will appear on the box in the bottom right corner until a BT connection is made, so don't make it too long.
+BLUETOOTH_ID = "237"
 # Should BT be enabled?
 BLUETOOTH_ENABLED = True
 # Should we log debug messages?
 BLUETOOTH_DEBUG = False
-# Bluetooth box ID. The box will appear as "FossBox_<id>" in the PWA Bluetooth menu. 
-BLUETOOTH_ID = "237"
+# Should we display the ID of the box on the box until a ref connects? Useful if you have multiple in the same room.
+BT_ID_ENABLED = True

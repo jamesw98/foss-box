@@ -14,12 +14,17 @@ class PimoroniI75:
         self.graphics.set_pen(self.graphics.create_pen(*color))
         self.graphics.rectangle(x, y, w, h)
 
-    def draw_text(self, text, x, y, color, scale=1):
+    def draw_text(self, text, x, y, color, scale=1, font='bitmap8'):
+        self.graphics.set_font(font)
         self.graphics.set_pen(self.graphics.create_pen(*color))
         self.graphics.text(text, x, y, scale=scale)
+        self.graphics.set_font('bitmap8')
 
-    def measure_text(self, text, scale=1):
-        return self.graphics.measure_text(text, scale)
+    def measure_text(self, text, scale=1, font='bitmap8'):
+        self.graphics.set_font(font)
+        width = self.graphics.measure_text(text, scale)
+        self.graphics.set_font('bitmap8')
+        return width
 
     def update(self):
         self.i75.update()

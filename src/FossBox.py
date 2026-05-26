@@ -77,7 +77,7 @@ class FossBox:
     def clear_clock(self):
         text_width = self.disp.measure_text(self.clock, 1)
         starting_x = (self.width - text_width) // 2
-        self.disp.fill_rect(starting_x, self.forth, text_width, self.eighth, Config.BLACK)
+        self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
     """
@@ -103,6 +103,29 @@ class FossBox:
     """
     def clear_bt_indicator(self):
         self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BLACK)
+        self.disp.update()
+
+    """
+    Draws the Bluetooth ID in the bottom right corner. Shown until a device connects.
+    """
+    def draw_bt_id(self):
+        if not Config.BT_ID_ENABLED:
+            return
+
+        text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
+        x = self.width - text_width + 1
+        y = self.height - 6
+        self.disp.draw_text(Config.BLUETOOTH_ID, x, y, Config.BT_CONNECTED_COLOR, font='bitmap6')
+        self.disp.update()
+
+    """
+    Clears the Bluetooth ID from the bottom right corner.
+    """
+    def clear_bt_id(self):
+        text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
+        x = self.width - text_width + 1
+        y = self.height - 6
+        self.disp.fill_rect(x, y, text_width, 6, Config.BLACK)
         self.disp.update()
 
     """
@@ -141,6 +164,9 @@ class FossBox:
     or disabling the clock and score if you don't have a ref. 
     """
     def run_reffed(self):
+        if self.bt:
+            self.draw_bt_id()
+
         while True:
             # If Bluetooth is enabled, check if a command was sent.
             if self.bt:
@@ -152,9 +178,11 @@ class FossBox:
                 if now_connected != self.bt_was_connected:
                     self.bt_was_connected = now_connected
                     if now_connected:
+                        self.clear_bt_id()
                         self.draw_bt_indicator()
                     else:
                         self.clear_bt_indicator()
+                        self.draw_bt_id()
 
             # Check to see if a button was pressed.
             left_valid, right_valid, left_bell, right_bell = self.check()
@@ -218,7 +246,7 @@ class FossBox:
             # Show the clock if it's enabled.
             if Config.CLOCK_ENABLED:
                 clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
-                self.disp.draw_text(self.clock, clock_x, self.forth, Config.TIMER_COLOR)
+                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
 
             # Show the scores if they're enabled.
             if Config.SCORE_ENABLED:
