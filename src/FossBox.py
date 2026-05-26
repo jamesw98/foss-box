@@ -42,6 +42,13 @@ class FossBox:
                 print("BLE init failed:", e)
 
         self.mode = Ref
+        self.mode_check()
+
+    """
+    Checks to runtime_config file to see what mode the box was last in. If this file doesn't exist, create it and set it
+    to the "Ref" mode. 
+    """
+    def mode_check(self):
         if "runtime_config.json" in uos.listdir():
             with open("runtime_config.json", "rb") as f:
                 raw = f.read()
@@ -51,19 +58,31 @@ class FossBox:
             with open("runtime_config.json", "w") as f:
                 json.dump({"mode": Ref}, f)
 
+    """
+    Checks for valid touches and bell guard touches. 
+    """
     def check(self):
         return self.weapon_left() and not self.bell_right(), self.weapon_right() and not self.bell_left(), self.bell_left(), self.bell_right()
 
+    """
+    Clears the touche indicator lights. 
+    """
     def clear_lights(self):
         self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
         self.disp.update()
 
+    """
+    Clears the clock.
+    """
     def clear_clock(self):
         text_width = self.disp.measure_text(self.clock, 1)
         starting_x = (self.width - text_width) // 2
         self.disp.fill_rect(starting_x, self.forth, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
+    """
+    Clears the left or right score.
+    """
     def clear_score(self, score, side):
         if score < 0:
             return
@@ -72,14 +91,23 @@ class FossBox:
         self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
         self.disp.update()
 
+    """
+    Draws the Bluetooth connected indicator.
+    """
     def draw_bt_indicator(self):
         self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BT_CONNECTED_COLOR)
         self.disp.update()
 
+    """
+    Clears the Bluetooth connected indicator.
+    """
     def clear_bt_indicator(self):
         self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BLACK)
         self.disp.update()
 
+    """
+    Handles all the Bluetooth communication from the PWA.
+    """
     def handle_bt_cmd(self, data):
         cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
@@ -107,6 +135,11 @@ class FossBox:
             self.clock_seconds = (data[1] << 8) | data[2]
             self.clock = Utils.format_clock(self.clock_seconds)
 
+    """
+    Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
+    connected to the box. It is technically functional without a ref, but I would recommend switching to "DumbBox" mode
+    or disabling the clock and score if you don't have a ref. 
+    """
     def run_reffed(self):
         while True:
             # If Bluetooth is enabled, check if a command was sent.
@@ -197,9 +230,16 @@ class FossBox:
 
             self.disp.update()
 
+    """
+    TODO
+    Self-reffing main loop.
+    """
     def run_self_reffed(self):
         raise NotImplementedError
 
+    """
+    Runs the selected mode. 
+    """
     def run(self):
         if self.mode == Ref:
             self.run_reffed()
