@@ -45,8 +45,15 @@ class FossBox:
         self.mode_check()
 
     """
+    Writes the current mode to runtime_config.json so it persists across reboots.
+    """
+    def save_mode(self):
+        with open("runtime_config.json", "w") as f:
+            json.dump({"mode": self.mode}, f)
+
+    """
     Checks to runtime_config file to see what mode the box was last in. If this file doesn't exist, create it and set it
-    to the "Ref" mode. 
+    to the "Ref" mode.
     """
     def mode_check(self):
         if "runtime_config.json" in uos.listdir():
@@ -157,6 +164,9 @@ class FossBox:
             self.clear_clock()
             self.clock_seconds = (data[1] << 8) | data[2]
             self.clock = Utils.format_clock(self.clock_seconds)
+        elif cmd == Bluetooth.CMD_SET_MODE and len(data) >= 2:
+            self.mode = data[1]
+            self.save_mode()
 
     """
     Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
