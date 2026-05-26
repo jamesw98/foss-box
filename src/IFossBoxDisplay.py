@@ -21,6 +21,15 @@ class IFossBoxDisplay:
     def update(self):
         raise NotImplementedError
 
+    def beep(self, duration):
+        raise NotImplementedError
+
+    def beeper_on(self):
+        raise NotImplementedError
+
+    def beeper_off(self):
+        raise NotImplementedError
+
     def weapon_left(self):
         raise NotImplementedError
 

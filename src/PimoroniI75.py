@@ -1,6 +1,6 @@
 import Config
+import time
 from IFossBoxDisplay import IFossBoxDisplay
-
 
 class PimoroniI75(IFossBoxDisplay):
     def __init__(self, width=64, height=32):
@@ -12,6 +12,7 @@ class PimoroniI75(IFossBoxDisplay):
         self.graphics.set_font('bitmap8')
         self.width = width
         self.height = height
+        self.beeper = Pin(Config.BUZZER_PIN, Pin.OUT, value=1)
 
     def fill_rect(self, x, y, w, h, color):
         self.graphics.set_pen(self.graphics.create_pen(*color))
@@ -31,6 +32,17 @@ class PimoroniI75(IFossBoxDisplay):
 
     def update(self):
         self.i75.update()
+
+    def beep(self, duration):
+        self.beeper_on()
+        time.sleep(duration)
+        self.beeper_off()
+
+    def beeper_on(self):
+        self.beeper.value(0)
+
+    def beeper_off(self):
+        self.beeper.value(1)
 
     def weapon_left(self):
         return self._button(Config.WEAPON_LEFT_PIN)

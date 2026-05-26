@@ -43,7 +43,7 @@ class FossBox:
 
         self.mode = Ref
         self.mode_check()
-
+    
     """
     Writes the current mode to runtime_config.json so it persists across reboots.
     """
@@ -138,6 +138,11 @@ class FossBox:
     """
     Handles all the Bluetooth communication from the PWA.
     """
+    def _sync_bt(self):
+        hi = (self.clock_seconds >> 8) & 0xFF
+        lo = self.clock_seconds & 0xFF
+        self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
+
     def handle_bt_cmd(self, data):
         cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
@@ -148,17 +153,21 @@ class FossBox:
         elif cmd == Bluetooth.CMD_LEFT_INC:
             self.clear_score(self.left_score, 'left')
             self.left_score += 1
+            self._sync_bt()
         elif cmd == Bluetooth.CMD_LEFT_DEC:
             if self.left_score > 0:
                 self.clear_score(self.left_score, 'left')
                 self.left_score -= 1
+                self._sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_INC:
             self.clear_score(self.right_score, 'right')
             self.right_score += 1
+            self._sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_DEC:
             if self.right_score > 0:
                 self.clear_score(self.right_score, 'right')
                 self.right_score -= 1
+                self._sync_bt()
         elif cmd == Bluetooth.CMD_SET_TIME and len(data) >= 3:
             self.clock_running = False
             self.clear_clock()
@@ -240,7 +249,9 @@ class FossBox:
 
                 # Update the display and score.
                 self.disp.update()
+                self.disp.beeper_on()
                 time.sleep(Config.ILLUM_TIME)
+                self.disp.beeper_off()
                 self.last_tick = Utils.ticks_ms()
                 self.clear_lights()
                 self.clear_score(self.left_score - 1, 'left')
