@@ -4,6 +4,8 @@ you want to handle some functionality, you have to implement these methods.
 """
 class IFossBoxDisplay:
     def __init__(self):
+        # 64x32 is what the code was originally made for, so if you don't specify when writing a class that inherits
+        # this, it'll default to this.
         self.width = 64
         self.height = 32
 

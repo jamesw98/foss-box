@@ -4,6 +4,7 @@ from IFossBoxDisplay import IFossBoxDisplay
 
 class PimoroniI75(IFossBoxDisplay):
     def __init__(self, width=64, height=32):
+        super().__init__()
         from interstate75 import Interstate75
         from machine import Pin
         self.i75 = Interstate75(display=Interstate75.DISPLAY_INTERSTATE75_64X32, color_order=Interstate75.COLOR_ORDER_RGB)
