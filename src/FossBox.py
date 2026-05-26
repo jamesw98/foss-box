@@ -1,9 +1,16 @@
 import Utils
 import time
 import Config
+import json
+import uos
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
+
+# MicroPython doesn't have enums apparently, sad!
+Ref = 0
+SelfRef = 1
+DumbBox = 2
 
 class FossBox:
     def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
@@ -34,6 +41,16 @@ class FossBox:
             except Exception as e:
                 print("BLE init failed:", e)
 
+        self.mode = Ref
+        if "runtime_config.json" in uos.listdir():
+            with open("runtime_config.json", "rb") as f:
+                raw = f.read()
+                runtime_conf = json.loads(raw.decode("utf-8").strip())
+                self.mode = runtime_conf.get("mode", Ref)
+        else:
+            with open("runtime_config.json", "w") as f:
+                json.dump({"mode": Ref}, f)
+
     def check(self):
         return self.weapon_left() and not self.bell_right(), self.weapon_right() and not self.bell_left(), self.bell_left(), self.bell_right()
 
@@ -56,11 +73,11 @@ class FossBox:
         self.disp.update()
 
     def draw_bt_indicator(self):
-        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BT_CONNECTED_COLOR)
+        self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BT_CONNECTED_COLOR)
         self.disp.update()
 
     def clear_bt_indicator(self):
-        self.disp.fill_rect(self.width - 4, self.height - 4, 4, 4, Config.BLACK)
+        self.disp.fill_rect(self.width - 2, self.height - 2, 2, 2, Config.BLACK)
         self.disp.update()
 
     def handle_bt_cmd(self, data):
@@ -90,7 +107,7 @@ class FossBox:
             self.clock_seconds = (data[1] << 8) | data[2]
             self.clock = Utils.format_clock(self.clock_seconds)
 
-    def run(self):
+    def run_reffed(self):
         while True:
             # If Bluetooth is enabled, check if a command was sent.
             if self.bt:
@@ -179,3 +196,12 @@ class FossBox:
                 self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
 
             self.disp.update()
+
+    def run_self_reffed(self):
+        raise NotImplementedError
+
+    def run(self):
+        if self.mode == Ref:
+            self.run_reffed()
+        elif self.mode == SelfRef:
+            self.run_self_reffed()
