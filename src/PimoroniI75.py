@@ -1,6 +1,8 @@
 import Config
+from IFossBoxDisplay import IFossBoxDisplay
 
-class PimoroniI75:
+
+class PimoroniI75(IFossBoxDisplay):
     def __init__(self, width=64, height=32):
         from interstate75 import Interstate75
         from machine import Pin
