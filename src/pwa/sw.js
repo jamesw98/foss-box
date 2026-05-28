@@ -1,4 +1,4 @@
-const CACHE = 'fossbox-v1';
+const CACHE = 'fossbox-v2';
 const ASSETS = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
