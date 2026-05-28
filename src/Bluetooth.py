@@ -47,7 +47,8 @@ if sys.implementation.name == 'circuitpython':
             self._was_connected = now_connected
 
             if now_connected:
-                data = self._uart.read(64)
+                n = self._uart.in_waiting
+                data = self._uart.read(n) if n else None
                 if data:
                     if Config.BLUETOOTH_DEBUG:
                         print("BLE: received", list(data))
