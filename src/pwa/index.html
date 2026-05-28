@@ -159,12 +159,7 @@
     async function sendBytes(byteArray) {
       if (!rxChar) return;
       try {
-        const buf = new Uint8Array(byteArray);
-        if (rxChar.properties.writeWithoutResponse) {
-          await rxChar.writeValueWithoutResponse(buf);
-        } else {
-          await rxChar.writeValue(buf);
-        }
+        await rxChar.writeValue(new Uint8Array(byteArray));
       } catch (e) {
         console.warn('BLE write failed:', e);
       }

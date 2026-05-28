@@ -3,13 +3,11 @@ This class serves as an interface. If you have a new board or different way
 you want to handle some functionality, you have to implement these methods.
 """
 class IFossBoxDisplay:
-    @property
-    def width(self):
-        raise NotImplementedError
-
-    @property
-    def height(self):
-        raise NotImplementedError
+    def __init__(self):
+        # 64x32 is what the code was originally made for, so if you don't specify when writing a class that inherits
+        # this, it'll default to this.
+        self.width = 64
+        self.height = 32
 
     def fill_rect(self, x, y, w, h, color):
         raise NotImplementedError
@@ -23,14 +21,23 @@ class IFossBoxDisplay:
     def update(self):
         raise NotImplementedError
 
-    def weapon_left(self, pin):
+    def beep(self, duration):
         raise NotImplementedError
 
-    def weapon_right(self, pin):
+    def beeper_on(self):
         raise NotImplementedError
 
-    def bell_left(self, pin):
+    def beeper_off(self):
         raise NotImplementedError
 
-    def bell_right(self, pin):
+    def weapon_left(self):
+        raise NotImplementedError
+
+    def weapon_right(self):
+        raise NotImplementedError
+
+    def bell_left(self):
+        raise NotImplementedError
+
+    def bell_right(self):
         raise NotImplementedError

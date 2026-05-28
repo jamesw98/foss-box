@@ -2,7 +2,11 @@ import Utils
 import time
 import Config
 import json
-import uos
+
+try:
+    import uos as uos
+except ImportError:
+    import os as uos
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
@@ -43,7 +47,7 @@ class FossBox:
 
         self.mode = Ref
         self.mode_check()
-
+    
     """
     Writes the current mode to runtime_config.json so it persists across reboots.
     """
@@ -138,6 +142,11 @@ class FossBox:
     """
     Handles all the Bluetooth communication from the PWA.
     """
+    def _sync_bt(self):
+        hi = (self.clock_seconds >> 8) & 0xFF
+        lo = self.clock_seconds & 0xFF
+        self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
+
     def handle_bt_cmd(self, data):
         cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
@@ -148,17 +157,21 @@ class FossBox:
         elif cmd == Bluetooth.CMD_LEFT_INC:
             self.clear_score(self.left_score, 'left')
             self.left_score += 1
+            self._sync_bt()
         elif cmd == Bluetooth.CMD_LEFT_DEC:
             if self.left_score > 0:
                 self.clear_score(self.left_score, 'left')
                 self.left_score -= 1
+                self._sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_INC:
             self.clear_score(self.right_score, 'right')
             self.right_score += 1
+            self._sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_DEC:
             if self.right_score > 0:
                 self.clear_score(self.right_score, 'right')
                 self.right_score -= 1
+                self._sync_bt()
         elif cmd == Bluetooth.CMD_SET_TIME and len(data) >= 3:
             self.clock_running = False
             self.clear_clock()
@@ -178,11 +191,12 @@ class FossBox:
             self.draw_bt_id()
 
         while True:
-            # If Bluetooth is enabled, check if a command was sent.
+            # Drain the full BLE queue so all pending commands are applied before redrawing.
             if self.bt:
                 cmd = self.bt.poll()
-                if cmd is not None:
+                while cmd is not None:
                     self.handle_bt_cmd(cmd)
+                    cmd = self.bt.poll()
 
                 now_connected = self.bt.connected
                 if now_connected != self.bt_was_connected:
@@ -199,14 +213,14 @@ class FossBox:
             double = left_valid and right_valid
             any_valid = left_valid or right_valid
 
-            # Display orange ground indicator when bell is pressed.
+            # Display orange ground indicator when bell is pressed (one frame, then clear).
             if left_bell or right_bell:
                 if left_bell:
                     self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
                 if right_bell:
                     self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
-            self.disp.update()
-            self.clear_lights()
+                self.disp.update()
+                self.clear_lights()
 
             # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
             if any_valid and not double:
@@ -240,7 +254,9 @@ class FossBox:
 
                 # Update the display and score.
                 self.disp.update()
+                self.disp.beeper_on()
                 time.sleep(Config.ILLUM_TIME)
+                self.disp.beeper_off()
                 self.last_tick = Utils.ticks_ms()
                 self.clear_lights()
                 self.clear_score(self.left_score - 1, 'left')
