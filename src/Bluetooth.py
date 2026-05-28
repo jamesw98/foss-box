@@ -1,6 +1,11 @@
 import sys
 import Config
 
+"""
+Here be dragons. 
+I am ashamed to admit it, but this code is 90% Claude. 
+"""
+
 DEVICE_NAME = "FossBox"
 
 CMD_TIMER_START  = 0x01
