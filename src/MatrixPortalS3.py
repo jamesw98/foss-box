@@ -15,7 +15,7 @@ except ImportError:
 
 
 class MatrixPortalS3(IFossBoxDisplay):
-    # HUB75 matrix pins — pre-wired on Matrix Portal S3, do not change
+    # HUB75 matrix pins - pre-wired on Matrix Portal S3, do not change
     _RGB_PINS = [
         board.MTX_R1, board.MTX_G1, board.MTX_B1,
         board.MTX_R2, board.MTX_G2, board.MTX_B2,
@@ -25,14 +25,14 @@ class MatrixPortalS3(IFossBoxDisplay):
     _LAT_PIN = board.MTX_LAT
     _OE_PIN = board.MTX_OE
 
-    # User GPIO — change these to match your wiring
+    # User GPIO - change these to match your wiring
     WEAPON_LEFT_PIN = board.A0
     WEAPON_RIGHT_PIN = board.A1
     BELL_LEFT_PIN = board.A2
     BELL_RIGHT_PIN = board.A3
     BUZZER_PIN = board.TX   # active-low external buzzer on TX pin
 
-    # Font file paths — copy these to /fonts/ on the board.
+    # Font file paths - copy these to /fonts/ on the board.
     # Download from:
     # https://github.com/olikraus/u8g2/tree/master/tools/font/bdf
     FONT_MAIN  = "/fonts/5x8.bdf"  # used for bitmap8 (scores, clock)

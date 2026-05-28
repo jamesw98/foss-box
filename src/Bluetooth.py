@@ -1,6 +1,11 @@
 import sys
 import Config
 
+"""
+Here be dragons. 
+I am ashamed to admit it, but this code is 90% Claude. 
+"""
+
 DEVICE_NAME = "FossBox"
 
 CMD_TIMER_START  = 0x01
@@ -47,7 +52,8 @@ if sys.implementation.name == 'circuitpython':
             self._was_connected = now_connected
 
             if now_connected:
-                data = self._uart.read(64)
+                n = self._uart.in_waiting
+                data = self._uart.read(n) if n else None
                 if data:
                     if Config.BLUETOOTH_DEBUG:
                         print("BLE: received", list(data))
