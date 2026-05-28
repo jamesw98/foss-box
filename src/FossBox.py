@@ -2,7 +2,11 @@ import Utils
 import time
 import Config
 import json
-import uos
+
+try:
+    import uos as uos
+except ImportError:
+    import os as uos
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
@@ -187,11 +191,12 @@ class FossBox:
             self.draw_bt_id()
 
         while True:
-            # If Bluetooth is enabled, check if a command was sent.
+            # Drain the full BLE queue so all pending commands are applied before redrawing.
             if self.bt:
                 cmd = self.bt.poll()
-                if cmd is not None:
+                while cmd is not None:
                     self.handle_bt_cmd(cmd)
+                    cmd = self.bt.poll()
 
                 now_connected = self.bt.connected
                 if now_connected != self.bt_was_connected:
@@ -208,14 +213,14 @@ class FossBox:
             double = left_valid and right_valid
             any_valid = left_valid or right_valid
 
-            # Display orange ground indicator when bell is pressed.
+            # Display orange ground indicator when bell is pressed (one frame, then clear).
             if left_bell or right_bell:
                 if left_bell:
                     self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
                 if right_bell:
                     self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
-            self.disp.update()
-            self.clear_lights()
+                self.disp.update()
+                self.clear_lights()
 
             # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
             if any_valid and not double:
