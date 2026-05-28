@@ -2,6 +2,14 @@
 
 A fencing scoring machine based on the [Pimoroni Interstate75W (RP2350)](https://shop.pimoroni.com/products/interstate-75) driving a 64x32 HUB75 LED matrix.
 
+# About
+Fencing scoring machines are expensive. The little SG boxes have gotten to be $400+ and those are as basic as they get.  
+I wanted to make an open source scoring machine for club use that is feature-rich! The FossBox can function as a simple scoring box, a scoring machine with timer and score controlled by a ref via their phone, or a box with score and time that two fencers can use on their own with no ref (work in progress at the time of writing)!  
+  
+I am also tired of everyone trying to make a quick buck off a piece of new shiny fencing tech. That's why this is all open source. All the electronics can be bought for ~$70 and some pieces, like the floor cord plugs, can be things you already have lying around. My first proof of concept box used spare epee sockets to connect the floor cords and epee socket arms as a stand. (Fun fact, most epee socket screws are M3, which is the same threads as the mounting holes on the back of the LED matrix.)  
+  
+Note: At the time of writing the FossBox is epee only. 
+
 # Requirements
 
 - Python
