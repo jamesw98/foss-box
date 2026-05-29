@@ -181,6 +181,114 @@ class FossBox:
             self.mode = data[1]
             self.save_mode()
 
+    def bt_check(self):
+        # Drain the full BLE queue so all pending commands are applied before redrawing.
+        if self.bt:
+            cmd = self.bt.poll()
+            while cmd is not None:
+                self.handle_bt_cmd(cmd)
+                cmd = self.bt.poll()
+
+            now_connected = self.bt.connected
+            if now_connected != self.bt_was_connected:
+                self.bt_was_connected = now_connected
+                if now_connected:
+                    self.clear_bt_id()
+                    self.draw_bt_indicator()
+                else:
+                    self.clear_bt_indicator()
+                    self.draw_bt_id()
+
+    def update_score_and_clock(self):
+        # Show the clock if it's enabled.
+        if Config.CLOCK_ENABLED:
+            clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
+            self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
+
+        # Show the scores if they're enabled.
+        if Config.SCORE_ENABLED:
+            left_num = str(self.left_score)
+            right_num = str(self.right_score)
+            right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
+            self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+            self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+
+        self.disp.update()
+
+
+    def main_loop(self, self_reffed=False):
+        # Check to see if a button was pressed.
+        left_valid, right_valid, left_bell, right_bell = self.check()
+        double = left_valid and right_valid
+        any_valid = left_valid or right_valid
+
+        # Display orange ground indicator when bell is pressed (one frame, then clear).
+        if left_bell or right_bell:
+            if left_bell:
+                self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
+            if right_bell:
+                self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
+            self.disp.update()
+            self.clear_lights()
+
+        # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
+        if any_valid and not double:
+            waiting_for = 'left' if right_valid else 'right'
+            start = Utils.ticks_ms()
+            while True:
+                left, right, _, _ = self.check()
+                if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
+                    double = True
+                    break
+
+                if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
+                    break
+
+        if any_valid:
+            # If we have any valid touches, light up the box.
+            if left_valid or double:
+                self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
+                self.left_score += 1
+            if right_valid or double:
+                self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
+                self.right_score += 1
+
+            # Stop the clock.
+            self.clock_running = False
+            # If we have BT enabled, send the clock info to the PWA.
+            if self.bt:
+                hi = (self.clock_seconds >> 8) & 0xFF
+                lo = self.clock_seconds & 0xFF
+                self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
+
+            # Update the display and score.
+            self.disp.update()
+            self.disp.beeper_on()
+            time.sleep(Config.ILLUM_TIME)
+            self.disp.beeper_off()
+
+            self.last_tick = Utils.ticks_ms()
+            self.clear_lights()
+
+            if self_reffed:
+                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
+                if left_deny:
+                    self.left_score -= 1
+                if right_deny:
+                    self.right_score -= 1
+
+            self.clear_score(self.left_score - 1, 'left')
+            self.clear_score(self.right_score - 1, 'right')
+
+        # Update the clock every second.
+        if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
+            self.clear_clock()
+            self.clock_seconds -= 1
+            self.last_tick = Utils.ticks_add(self.last_tick, 1000)
+            self.clock = Utils.format_clock(self.clock_seconds)
+
+        return any_valid
+
     """
     Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
     connected to the box. It is technically functional without a ref, but I would recommend switching to "DumbBox" mode
@@ -191,98 +299,8 @@ class FossBox:
             self.draw_bt_id()
 
         while True:
-            # Drain the full BLE queue so all pending commands are applied before redrawing.
-            if self.bt:
-                cmd = self.bt.poll()
-                while cmd is not None:
-                    self.handle_bt_cmd(cmd)
-                    cmd = self.bt.poll()
-
-                now_connected = self.bt.connected
-                if now_connected != self.bt_was_connected:
-                    self.bt_was_connected = now_connected
-                    if now_connected:
-                        self.clear_bt_id()
-                        self.draw_bt_indicator()
-                    else:
-                        self.clear_bt_indicator()
-                        self.draw_bt_id()
-
-            # Check to see if a button was pressed.
-            left_valid, right_valid, left_bell, right_bell = self.check()
-            double = left_valid and right_valid
-            any_valid = left_valid or right_valid
-
-            # Display orange ground indicator when bell is pressed (one frame, then clear).
-            if left_bell or right_bell:
-                if left_bell:
-                    self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
-                if right_bell:
-                    self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
-                self.disp.update()
-                self.clear_lights()
-
-            # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
-            if any_valid and not double:
-                waiting_for = 'left' if right_valid else 'right'
-                start = Utils.ticks_ms()
-                while True:
-                    left, right, _, _ = self.check()
-                    if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
-                        double = True
-                        break
-
-                    if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
-                        break
-
-            if any_valid:
-                # If we have any valid touches, light up the box.
-                if left_valid or double:
-                    self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
-                    self.left_score += 1
-                if right_valid or double:
-                    self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
-                    self.right_score += 1
-
-                # Stop the clock.
-                self.clock_running = False
-                # If we have BT enabled, send the clock info to the PWA.
-                if self.bt:
-                    hi = (self.clock_seconds >> 8) & 0xFF
-                    lo = self.clock_seconds & 0xFF
-                    self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
-
-                # Update the display and score.
-                self.disp.update()
-                self.disp.beeper_on()
-                time.sleep(Config.ILLUM_TIME)
-                self.disp.beeper_off()
-                self.last_tick = Utils.ticks_ms()
-                self.clear_lights()
-                self.clear_score(self.left_score - 1, 'left')
-                self.clear_score(self.right_score - 1, 'right')
-
-            # Update the clock every second.
-            if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
-                self.clear_clock()
-                self.clock_seconds -= 1
-                self.last_tick = Utils.ticks_add(self.last_tick, 1000)
-                self.clock = Utils.format_clock(self.clock_seconds)
-
-            # Show the clock if it's enabled.
-            if Config.CLOCK_ENABLED:
-                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
-                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
-
-            # Show the scores if they're enabled.
-            if Config.SCORE_ENABLED:
-                left_num = str(self.left_score)
-                right_num = str(self.right_score)
-                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
-                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-
-            self.disp.update()
+            self.bt_check()
+            self.main_loop()
 
     def check_for_self_deny(self, left_valid, right_valid):
         start = Utils.ticks_ms()
@@ -362,17 +380,7 @@ class FossBox:
             if right_ready:
                 self.disp.draw_text(ready_text, self.half + (self.half - text_width) // 2, ready_y, Config.RIGHT_COLOR, font='bitmap6')
 
-            if Config.CLOCK_ENABLED:
-                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
-                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
-
-            if Config.SCORE_ENABLED:
-                left_num = str(self.left_score)
-                right_num = str(self.right_score)
-                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
-                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-
+            self.update_score_and_clock()
             self.disp.update()
 
         # TODO
@@ -380,99 +388,8 @@ class FossBox:
         time.sleep(3)
 
         while True:
-            # Drain the full BLE queue so all pending commands are applied before redrawing.
-            if self.bt:
-                cmd = self.bt.poll()
-                while cmd is not None:
-                    self.handle_bt_cmd(cmd)
-                    cmd = self.bt.poll()
-
-                now_connected = self.bt.connected
-                if now_connected != self.bt_was_connected:
-                    self.bt_was_connected = now_connected
-                    if now_connected:
-                        self.draw_bt_indicator()
-                    else:
-                        self.clear_bt_indicator()
-
-            # Check to see if a button was pressed.
-            left_valid, right_valid, left_bell, right_bell = self.check()
-            double = left_valid and right_valid
-            any_valid = left_valid or right_valid
-
-            # Display orange ground indicator when bell is pressed (one frame, then clear).
-            if left_bell or right_bell:
-                if left_bell:
-                    self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
-                if right_bell:
-                    self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
-                self.disp.update()
-                self.clear_lights()
-
-            # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
-            if any_valid and not double:
-                waiting_for = 'left' if right_valid else 'right'
-                start = Utils.ticks_ms()
-                while True:
-                    left, right, _, _ = self.check()
-                    if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
-                        double = True
-                        break
-
-                    if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
-                        break
-
-            if any_valid:
-                # If we have any valid touches, light up the box.
-                if left_valid or double:
-                    self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
-                    self.left_score += 1
-                if right_valid or double:
-                    self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
-                    self.right_score += 1
-
-                # Stop the clock.
-                self.clock_running = False
-
-                # Update the display and score.
-                self.disp.update()
-                self.disp.beeper_on()
-                time.sleep(Config.ILLUM_TIME)
-                self.disp.beeper_off()
-
-                self.last_tick = Utils.ticks_ms()
-                self.clear_lights()
-
-                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
-                if left_deny:
-                    self.left_score -= 1
-                if right_deny:
-                    self.right_score -= 1
-
-                self.clear_score(self.left_score - 1, 'left')
-                self.clear_score(self.right_score - 1, 'right')
-
-            # Update the clock every second.
-            if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
-                self.clear_clock()
-                self.clock_seconds -= 1
-                self.last_tick = Utils.ticks_add(self.last_tick, 1000)
-                self.clock = Utils.format_clock(self.clock_seconds)
-
-            # Show the clock if it's enabled.
-            if Config.CLOCK_ENABLED:
-                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
-                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
-
-            # Show the scores if they're enabled.
-            if Config.SCORE_ENABLED:
-                left_num = str(self.left_score)
-                right_num = str(self.right_score)
-                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
-                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
-
-            self.disp.update()
+            self.bt_check()
+            any_valid = self.main_loop()
 
             if any_valid:
                 # TODO
