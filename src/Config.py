@@ -38,6 +38,10 @@ CLOCK_ENABLED = True
 SCORE_ENABLED = True
 # Clock start time, in seconds.
 CLOCK_SECONDS = 180
+# How long the fencers have to deny a touch in self reffing mode.
+SELF_DENY_DELAY = 3000
+# How tall should the self deny timer countdown bar be in pixels?
+SELF_DENY_COUNTDOWN_HEIGHT = 1
 
 """
 Color Config
@@ -49,6 +53,8 @@ SCORE_COLOR = (255, 255, 255)
 TIMER_COLOR = (255, 255, 255)
 GROUND_COLOR = (255, 100, 0)
 BT_CONNECTED_COLOR = (0, 80, 255)
+UNLIT_PIP_COLOR = (80, 80, 80)
+LIT_PIP_COLOR = (255, 255, 0)
 
 """
 :)

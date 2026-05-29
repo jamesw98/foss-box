@@ -142,7 +142,7 @@ class FossBox:
     """
     Handles all the Bluetooth communication from the PWA.
     """
-    def _sync_bt(self):
+    def sync_bt(self):
         hi = (self.clock_seconds >> 8) & 0xFF
         lo = self.clock_seconds & 0xFF
         self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
@@ -157,21 +157,21 @@ class FossBox:
         elif cmd == Bluetooth.CMD_LEFT_INC:
             self.clear_score(self.left_score, 'left')
             self.left_score += 1
-            self._sync_bt()
+            self.sync_bt()
         elif cmd == Bluetooth.CMD_LEFT_DEC:
             if self.left_score > 0:
                 self.clear_score(self.left_score, 'left')
                 self.left_score -= 1
-                self._sync_bt()
+                self.sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_INC:
             self.clear_score(self.right_score, 'right')
             self.right_score += 1
-            self._sync_bt()
+            self.sync_bt()
         elif cmd == Bluetooth.CMD_RIGHT_DEC:
             if self.right_score > 0:
                 self.clear_score(self.right_score, 'right')
                 self.right_score -= 1
-                self._sync_bt()
+                self.sync_bt()
         elif cmd == Bluetooth.CMD_SET_TIME and len(data) >= 3:
             self.clock_running = False
             self.clear_clock()
@@ -284,12 +284,200 @@ class FossBox:
 
             self.disp.update()
 
+    def check_for_self_deny(self, left_valid, right_valid):
+        start = Utils.ticks_ms()
+        left_presses = 0
+        right_presses = 0
+        prev_left = False
+        prev_right = False
+        bar_h = Config.SELF_DENY_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        deny_ms = Config.SELF_DENY_DELAY
+
+        pip_size = 4
+        pip_gap = 2
+        pip_total_w = pip_size * 2 + pip_gap
+        pip_y = self.forth - pip_size - 2
+        left_pip_x = (self.half - pip_total_w) // 2
+        right_pip_x = self.half + (self.half - pip_total_w) // 2
+
+        while True:
+            elapsed = Utils.ticks_diff(Utils.ticks_ms(), start)
+            if elapsed >= deny_ms:
+                self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+                self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+                self.disp.update()
+                return left_valid and left_presses >= 2, right_valid and right_presses >= 2
+
+            bar_width = self.width * (deny_ms - elapsed) // deny_ms
+            self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+            self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
+
+            # Left fencer denying their own touch - pips on left half
+            if left_valid:
+                for i in range(2):
+                    color = Config.LIT_PIP_COLOR if i < left_presses else Config.UNLIT_PIP_COLOR
+                    self.disp.fill_rect(left_pip_x + i * (pip_size + pip_gap), pip_y, pip_size, pip_size, color)
+
+            # Right fencer denying their own touch - pips on right half
+            if right_valid:
+                for i in range(2):
+                    color = Config.LIT_PIP_COLOR if i < right_presses else Config.UNLIT_PIP_COLOR
+                    self.disp.fill_rect(right_pip_x + i * (pip_size + pip_gap), pip_y, pip_size, pip_size, color)
+
+            self.disp.update()
+
+            left, right, _, _ = self.check()
+            if left and not prev_left:
+                left_presses = min(left_presses + 1, 2)
+            if right and not prev_right:
+                right_presses = min(right_presses + 1, 2)
+            prev_left = left
+            prev_right = right
+
     """
     TODO
     Self-reffing main loop.
     """
     def run_self_reffed(self):
-        raise NotImplementedError
+        left_ready = False
+        right_ready = False
+
+        while not (left_ready and right_ready):
+            _, _, left_bell, right_bell = self.check()
+
+            if not left_ready and left_bell:
+                left_ready = True
+
+            if not right_ready and right_bell:
+                right_ready = True
+
+            ready_text = "ready"
+            text_width = self.disp.measure_text(ready_text, 1, font='bitmap6')
+            ready_y = (self.forth - 6) // 2
+
+            if left_ready:
+                self.disp.draw_text(ready_text, (self.half - text_width) // 2, ready_y, Config.LEFT_COLOR, font='bitmap6')
+
+            if right_ready:
+                self.disp.draw_text(ready_text, self.half + (self.half - text_width) // 2, ready_y, Config.RIGHT_COLOR, font='bitmap6')
+
+            if Config.CLOCK_ENABLED:
+                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
+                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
+
+            if Config.SCORE_ENABLED:
+                left_num = str(self.left_score)
+                right_num = str(self.right_score)
+                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
+                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+
+            self.disp.update()
+
+        # TODO
+        # En guarde, ready, fence beep, then start the bout
+        time.sleep(3)
+
+        while True:
+            # Drain the full BLE queue so all pending commands are applied before redrawing.
+            if self.bt:
+                cmd = self.bt.poll()
+                while cmd is not None:
+                    self.handle_bt_cmd(cmd)
+                    cmd = self.bt.poll()
+
+                now_connected = self.bt.connected
+                if now_connected != self.bt_was_connected:
+                    self.bt_was_connected = now_connected
+                    if now_connected:
+                        self.draw_bt_indicator()
+                    else:
+                        self.clear_bt_indicator()
+
+            # Check to see if a button was pressed.
+            left_valid, right_valid, left_bell, right_bell = self.check()
+            double = left_valid and right_valid
+            any_valid = left_valid or right_valid
+
+            # Display orange ground indicator when bell is pressed (one frame, then clear).
+            if left_bell or right_bell:
+                if left_bell:
+                    self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
+                if right_bell:
+                    self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
+                self.disp.update()
+                self.clear_lights()
+
+            # If we have a touch, but not a double, start waiting for the other weapon to determine a double.
+            if any_valid and not double:
+                waiting_for = 'left' if right_valid else 'right'
+                start = Utils.ticks_ms()
+                while True:
+                    left, right, _, _ = self.check()
+                    if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
+                        double = True
+                        break
+
+                    if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
+                        break
+
+            if any_valid:
+                # If we have any valid touches, light up the box.
+                if left_valid or double:
+                    self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
+                    self.left_score += 1
+                if right_valid or double:
+                    self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
+                    self.right_score += 1
+
+                # Stop the clock.
+                self.clock_running = False
+
+                # Update the display and score.
+                self.disp.update()
+                self.disp.beeper_on()
+                time.sleep(Config.ILLUM_TIME)
+                self.disp.beeper_off()
+
+                self.last_tick = Utils.ticks_ms()
+                self.clear_lights()
+
+                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
+                if left_deny:
+                    self.left_score -= 1
+                if right_deny:
+                    self.right_score -= 1
+
+                self.clear_score(self.left_score - 1, 'left')
+                self.clear_score(self.right_score - 1, 'right')
+
+            # Update the clock every second.
+            if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
+                self.clear_clock()
+                self.clock_seconds -= 1
+                self.last_tick = Utils.ticks_add(self.last_tick, 1000)
+                self.clock = Utils.format_clock(self.clock_seconds)
+
+            # Show the clock if it's enabled.
+            if Config.CLOCK_ENABLED:
+                clock_x = (self.width - self.disp.measure_text(self.clock, 1)) // 2
+                self.disp.draw_text(self.clock, clock_x, self.forth + Config.TOP_PADDING, Config.TIMER_COLOR)
+
+            # Show the scores if they're enabled.
+            if Config.SCORE_ENABLED:
+                left_num = str(self.left_score)
+                right_num = str(self.right_score)
+                right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
+                self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+                self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+
+            self.disp.update()
+
+            if any_valid:
+                # TODO
+                # En-guard, ready, fence beep, start timer
+                pass
 
     """
     Runs the selected mode. 
