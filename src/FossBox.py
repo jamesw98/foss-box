@@ -147,6 +147,9 @@ class FossBox:
         lo = self.clock_seconds & 0xFF
         self.bt.notify([Bluetooth.EVT_STATE_SYNC, self.left_score, self.right_score, hi, lo])
 
+    """
+    Handles any BT commands sent by the PWA
+    """
     def handle_bt_cmd(self, data):
         cmd = data[0]
         if cmd == Bluetooth.CMD_TIMER_START:
@@ -181,6 +184,9 @@ class FossBox:
             self.mode = data[1]
             self.save_mode()
 
+    """
+    Polls for any BT messages. 
+    """
     def bt_check(self):
         # Drain the full BLE queue so all pending commands are applied before redrawing.
         if self.bt:
@@ -199,6 +205,9 @@ class FossBox:
                     self.clear_bt_indicator()
                     self.draw_bt_id()
 
+    """
+    Does what it says, updates the scores and the clock
+    """
     def update_score_and_clock(self):
         # Show the clock if it's enabled.
         if Config.CLOCK_ENABLED:
@@ -215,7 +224,30 @@ class FossBox:
 
         self.disp.update()
 
+    """
+    Beeps: "En guarde. Ready? Fence!" 
+    """
+    def enguarde_ready_fence(self):
+        self.disp.beeper_on()   # en
+        time.sleep(0.1)
+        self.disp.beeper_off()
+        time.sleep(0.05)
+        self.disp.beeper_on()   # garde
+        time.sleep(0.1)
+        self.disp.beeper_off()
+        time.sleep(0.35)
+        self.disp.beeper_on()   # ready
+        time.sleep(0.15)
+        self.disp.beeper_off()
+        time.sleep(0.3)
+        self.disp.beeper_on()   # fence
+        time.sleep(0.6)
+        self.disp.beeper_off()
 
+
+    """
+    Main logic of the box. 
+    """
     def main_loop(self, self_reffed=False):
         # Check to see if a button was pressed.
         left_valid, right_valid, left_bell, right_bell = self.check()
@@ -288,7 +320,6 @@ class FossBox:
             self.clock = Utils.format_clock(self.clock_seconds)
 
         self.update_score_and_clock()
-
         return any_valid
 
     def draw_pips(self, left_presses, right_presses, pip_y, show_left=True, show_right=True):
@@ -339,9 +370,7 @@ class FossBox:
             self.draw_pips(left_presses, right_presses, pip_y, show_left=left_valid, show_right=right_valid)
             self.disp.update()
 
-            left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(
-                left_presses, right_presses, prev_left, prev_right
-            )
+            left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
 
     """
     Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
@@ -398,21 +427,23 @@ class FossBox:
         self.disp.update()
 
     """
-    TODO
     Self-reffing main loop.
     """
     def run_self_reffed(self):
         self.wait_for_ready()
 
-        # TODO: En guarde, ready, fence beep, then start the bout
+        self.enguarde_ready_fence()
+        self.last_tick = Utils.ticks_ms()
+        self.clock_running = True
 
         while True:
             self.bt_check()
             any_valid = self.main_loop(self_reffed=True)
 
             if any_valid:
-                # TODO: En-guard, ready, fence beep, start timer
-                pass
+                self.enguarde_ready_fence()
+                self.last_tick = Utils.ticks_ms()
+                self.clock_running = True
 
     """
     Runs the selected mode. 
