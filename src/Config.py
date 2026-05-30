@@ -67,4 +67,8 @@ EASTER_EGG_QUOTES = [
     "I told them\nto fix their\nhearts or\ndie.",
     "It is\nhappening\nagain.",
     "That gum you\nlike is\ncoming back\nin style.",
+    "When you see\nme again,\nit won't be\nme.",
+    "Harry, you're\nall right.",
+    "My log saw\nsomething\nthat night.",
+    "Harry, is\nthat bag\nsmiling?"
 ]
