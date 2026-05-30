@@ -270,7 +270,8 @@ class FossBox:
             while True:
                 left, right, _, _ = self.check()
                 if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
-                    double = True
+                    left_valid = True
+                    right_valid = True
                     break
 
                 if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
