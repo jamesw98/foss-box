@@ -36,6 +36,7 @@ class FossBox:
         self.clock = Utils.format_clock(self.clock_seconds)
         self.last_tick = Utils.ticks_ms()
         self.clock_running = False
+        self.current_period = 0
 
         self.bt = None
         self.bt_was_connected = False
@@ -89,6 +90,13 @@ class FossBox:
         text_width = self.disp.measure_text(self.clock, 1)
         starting_x = (self.width - text_width) // 2
         self.disp.fill_rect(starting_x, self.forth + Config.TOP_PADDING, text_width, self.eighth, Config.BLACK)
+        self.disp.update()
+
+    """
+    Clears the period indicator below the clock.
+    """
+    def clear_period(self):
+        self.disp.fill_rect(0, self.height - 3, self.current_period * 4, 2, Config.BLACK)
         self.disp.update()
 
     """
@@ -221,6 +229,11 @@ class FossBox:
             right_x = self.width - self.disp.measure_text(right_num, 1) - Config.SIDE_PADDING
             self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
             self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
+
+        # Show the period indicator as 2x2 orange squares in the bottom-left.
+        if self.current_period > 0:
+            for i in range(self.current_period):
+                self.disp.fill_rect(i * 4, self.height - 3, 2, 2, Config.BT_CONNECTED_COLOR)
 
         self.disp.update()
 
@@ -430,13 +443,12 @@ class FossBox:
     Self-reffing main loop.
     """
     def run_self_reffed(self):
+        self.current_period = 1
         self.wait_for_ready()
 
         self.enguarde_ready_fence()
         self.last_tick = Utils.ticks_ms()
         self.clock_running = True
-
-        current_period = 1
 
         while True:
             self.bt_check()
@@ -452,6 +464,28 @@ class FossBox:
                 self.disp.beeper_on()
                 time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
                 self.disp.beeper_off()
+
+                if self.current_period >= Config.MAX_PERIODS:
+                    msg = Config.END_OF_BOUT_MSG
+                    msg_width = self.disp.measure_text(msg, 1, font='bitmap6')
+                    self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+                    self.disp.draw_text(msg, (self.width - msg_width) // 2, (self.forth - 6) // 2, Config.GROUND_COLOR, font='bitmap6')
+                    self.disp.update()
+                    time.sleep(Config.END_OF_BOUT_DELAY_SECONDS)
+
+                    self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
+                    self.disp.update()
+                    self.left_score = 0
+                    self.right_score = 0
+                    self.clock_seconds = Config.CLOCK_SECONDS
+                    self.clock = Utils.format_clock(self.clock_seconds)
+                    self.current_period = 1
+                    self.wait_for_ready()
+                    self.enguarde_ready_fence()
+                    self.last_tick = Utils.ticks_ms()
+                    self.clock_running = True
+                    continue
+
                 self.clock_seconds = Config.PERIOD_BREAK
                 self.clock_running = True
 
@@ -466,7 +500,8 @@ class FossBox:
 
                 self.clock_running = False
                 self.clock_seconds = Config.CLOCK_SECONDS
-                current_period += 1
+                self.clear_period()
+                self.current_period += 1
                 self.enguarde_ready_fence()
                 self.clock_running = True
 
