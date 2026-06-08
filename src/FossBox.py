@@ -244,7 +244,6 @@ class FossBox:
         time.sleep(0.6)
         self.disp.beeper_off()
 
-
     """
     Main logic of the box. 
     """
@@ -405,20 +404,20 @@ class FossBox:
         prev_right = False
 
         pip_y = (self.forth - 4) // 2 - 4
-        ready_text = "ready"
         ready_y = pip_y + 4 + 2
 
         while left_presses < 2 or right_presses < 2:
+            self.bt_check()
             left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
             self.draw_pips(left_presses, right_presses, pip_y)
 
             if left_presses >= 2:
-                text_width = self.disp.measure_text(ready_text, 1, font='bitmap6')
-                self.disp.draw_text(ready_text, (self.half - text_width) // 2, ready_y, Config.LEFT_COLOR, font='bitmap6')
+                text_width = self.disp.measure_text(Config.SELF_REF_READY, 1, font='bitmap6')
+                self.disp.draw_text(Config.SELF_REF_READY, (self.half - text_width) // 2, ready_y, Config.LEFT_COLOR, font='bitmap6')
 
             if right_presses >= 2:
-                text_width = self.disp.measure_text(ready_text, 1, font='bitmap6')
-                self.disp.draw_text(ready_text, self.half + (self.half - text_width) // 2, ready_y, Config.RIGHT_COLOR, font='bitmap6')
+                text_width = self.disp.measure_text(Config.SELF_REF_READY, 1, font='bitmap6')
+                self.disp.draw_text(Config.SELF_REF_READY, self.half + (self.half - text_width) // 2, ready_y, Config.RIGHT_COLOR, font='bitmap6')
 
             self.update_score_and_clock()
 
@@ -437,6 +436,8 @@ class FossBox:
         self.last_tick = Utils.ticks_ms()
         self.clock_running = True
 
+        current_period = 1
+
         while True:
             self.bt_check()
             any_valid = self.main_loop(self_reffed=True)
@@ -444,6 +445,29 @@ class FossBox:
             if any_valid:
                 self.enguarde_ready_fence()
                 self.last_tick = Utils.ticks_ms()
+                self.clock_running = True
+
+            if self.clock_seconds == 0:
+                self.clock_running = False
+                self.disp.beeper_on()
+                time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
+                self.disp.beeper_off()
+                self.clock_seconds = Config.PERIOD_BREAK
+                self.clock_running = True
+
+                self.last_tick = Utils.ticks_ms()
+                while self.clock_seconds > 0:
+                    if Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000:
+                        self.clear_clock()
+                        self.clock_seconds -= 1
+                        self.last_tick = Utils.ticks_add(self.last_tick, 1000)
+                        self.clock = Utils.format_clock(self.clock_seconds)
+                    self.update_score_and_clock()
+
+                self.clock_running = False
+                self.clock_seconds = Config.CLOCK_SECONDS
+                current_period += 1
+                self.enguarde_ready_fence()
                 self.clock_running = True
 
     """

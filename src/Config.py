@@ -37,11 +37,19 @@ CLOCK_ENABLED = True
 # Should the scores be enabled?
 SCORE_ENABLED = True
 # Clock start time, in seconds.
-CLOCK_SECONDS = 180
+CLOCK_SECONDS = 10
 # How long the fencers have to deny a touch in self reffing mode.
 SELF_DENY_DELAY = 3000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
+# How long should the period break be in seconds?
+PERIOD_BREAK = 5
+# How should we indicate that a fencer is ready in self reffing mode?
+SELF_REF_READY = 'ready'
+# How many periods should there be?
+MAX_PERIODS = 3
+# How long should the buzzer sound to signal the end of a period?
+PERIOD_OVER_BUZZER_SECONDS = 1
 
 """
 Color Config
