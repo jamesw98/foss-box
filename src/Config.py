@@ -22,7 +22,33 @@ BLUETOOTH_DEBUG = False
 BT_ID_ENABLED = True
 
 """
-General Config - You should not need to mess with any of this. 
+Bout related config
+"""
+# How many periods should there be?
+MAX_PERIODS = 3
+# How long should the buzzer sound to signal the end of a period?
+PERIOD_OVER_BUZZER_SECONDS = 1
+# What message should be displayed at the end of the bout?
+END_OF_BOUT_MSG = "End of bout!"
+# How long should we wait at the end of a bout before starting the next one?
+END_OF_BOUT_DELAY_SECONDS = 10
+# How long should the period break be in seconds?
+PERIOD_BREAK = 60
+# Clock start time, in seconds.
+CLOCK_SECONDS = 180
+
+"""
+Self reffing config
+"""
+# How long the fencers have to deny a touch in self reffing mode.
+SELF_DENY_DELAY = 3000
+# How tall should the self deny timer countdown bar be in pixels?
+SELF_DENY_COUNTDOWN_HEIGHT = 1
+# How should we indicate that a fencer is ready in self reffing mode?
+SELF_REF_READY = 'ready'
+
+"""
+General config
 """
 # How long the lights stay illuminated after a touch.
 ILLUM_TIME = 2
@@ -36,24 +62,6 @@ TOP_PADDING = 3
 CLOCK_ENABLED = True
 # Should the scores be enabled?
 SCORE_ENABLED = True
-# Clock start time, in seconds.
-CLOCK_SECONDS = 180
-# How long the fencers have to deny a touch in self reffing mode.
-SELF_DENY_DELAY = 3000
-# How tall should the self deny timer countdown bar be in pixels?
-SELF_DENY_COUNTDOWN_HEIGHT = 1
-# How long should the period break be in seconds?
-PERIOD_BREAK = 60
-# How should we indicate that a fencer is ready in self reffing mode?
-SELF_REF_READY = 'ready'
-# How many periods should there be?
-MAX_PERIODS = 3
-# How long should the buzzer sound to signal the end of a period?
-PERIOD_OVER_BUZZER_SECONDS = 1
-# What message should be displayed at the end of the bout?
-END_OF_BOUT_MSG = "End of bout!"
-# How long should we wait at the end of a bout before starting the next one?
-END_OF_BOUT_DELAY_SECONDS = 10
 
 """
 Color Config
