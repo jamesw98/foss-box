@@ -46,6 +46,8 @@ SELF_DENY_DELAY = 3000
 SELF_DENY_COUNTDOWN_HEIGHT = 1
 # How should we indicate that a fencer is ready in self reffing mode?
 SELF_REF_READY = 'ready'
+# What should the fencers fence to during self reffing?
+SELF_REF_SCORE_MAX = 15
 
 """
 General config
