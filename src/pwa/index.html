@@ -103,13 +103,16 @@
     };
 
     const EVT_STATE_SYNC = 0x10;
-
     const CLOCK_START_SECONDS = 180;
+
+    // Served directly from the box's AP — use HTTP instead of Bluetooth.
+    const WIFI_MODE = window.location.hostname === '192.168.4.1';
 
     let rxChar = null;
     let txChar = null;
     let device = null;
     let timerInterval = null;
+    let wifiPollInterval = null;
     let seconds = CLOCK_START_SECONDS;
     let leftScore = 0;
     let rightScore = 0;
@@ -125,7 +128,7 @@
     const $rightScore  = document.getElementById('right-score');
     const $noBt        = document.getElementById('no-bt-warning');
 
-    if (!navigator.bluetooth) {
+    if (!WIFI_MODE && !navigator.bluetooth) {
       $noBt.style.display = 'block';
       $connect.disabled = true;
       $connect.textContent = 'Bluetooth Unavailable';
@@ -148,6 +151,10 @@
         $connect.textContent = 'Connect to FossBox';
         $connect.classList.remove('connected');
         document.body.classList.add('controls-disabled');
+        if (wifiPollInterval) {
+          clearInterval(wifiPollInterval);
+          wifiPollInterval = null;
+        }
         rxChar = null;
         txChar = null;
         stopLocalTimer();
@@ -157,6 +164,14 @@
     }
 
     async function sendBytes(byteArray) {
+      if (WIFI_MODE) {
+        try {
+          await fetch('/cmd', { method: 'POST', body: new Uint8Array(byteArray) });
+        } catch (e) {
+          console.warn('WiFi POST failed:', e);
+        }
+        return;
+      }
       if (!rxChar) return;
       try {
         await rxChar.writeValue(new Uint8Array(byteArray));
@@ -235,6 +250,7 @@
       }
     });
 
+    // ── BT: state sync via GATT notification ──
     function onBoxNotify(event) {
       const data = new Uint8Array(event.target.value.buffer);
       if (data[0] === EVT_STATE_SYNC) {
@@ -248,7 +264,56 @@
       }
     }
 
+    // ── WiFi: state sync via HTTP polling ──
+    function handleWifiState(state) {
+      leftScore  = state.left;
+      rightScore = state.right;
+      seconds    = state.seconds;
+      $leftScore.textContent  = leftScore;
+      $rightScore.textContent = rightScore;
+      $timerDisp.textContent  = fmt(seconds);
+      setTimerRunning(state.running);
+    }
+
+    async function connectWifi() {
+      try {
+        $connect.textContent = 'Connecting…';
+        $connect.disabled = true;
+        const r = await fetch('/state');
+        if (!r.ok) throw new Error('box unreachable');
+        handleWifiState(await r.json());
+        setConnected(true);
+        wifiPollInterval = setInterval(async () => {
+          try {
+            const pr = await fetch('/state');
+            if (!pr.ok) throw new Error();
+            handleWifiState(await pr.json());
+          } catch {
+            clearInterval(wifiPollInterval);
+            wifiPollInterval = null;
+            setConnected(false);
+          }
+        }, 500);
+      } catch (e) {
+        setConnected(false);
+        $noBt.textContent = `Connection failed: ${e.message}`;
+        $noBt.style.display = 'block';
+        setTimeout(() => { $noBt.style.display = 'none'; }, 5000);
+      } finally {
+        $connect.disabled = false;
+      }
+    }
+
+    // ── Connect button ──
     $connect.addEventListener('click', async () => {
+      if (WIFI_MODE) {
+        if (wifiPollInterval) {
+          setConnected(false);
+        } else {
+          await connectWifi();
+        }
+        return;
+      }
       if (device && device.gatt.connected) {
         device.gatt.disconnect();
         return;
@@ -282,40 +347,45 @@
       }
     });
 
+    // In WiFi mode, auto-connect on page load — no pairing dialog needed.
+    if (WIFI_MODE) {
+      window.addEventListener('load', connectWifi);
+    }
+
     $btnTimer.addEventListener('click', async () => {
       if (timerInterval) {
         await sendCmd(CMD.TIMER_STOP);
-        stopLocalTimer();
+        if (!WIFI_MODE) stopLocalTimer();
       } else {
         await sendCmd(CMD.TIMER_START);
-        startLocalTimer();
+        if (!WIFI_MODE) startLocalTimer();
       }
     });
 
     document.getElementById('left-inc').addEventListener('click', async () => {
       await sendCmd(CMD.TIMER_STOP);
-      stopLocalTimer();
+      if (!WIFI_MODE) stopLocalTimer();
       await sendCmd(CMD.LEFT_INC);
-      $leftScore.textContent = ++leftScore;
+      if (!WIFI_MODE) $leftScore.textContent = ++leftScore;
     });
 
     document.getElementById('left-dec').addEventListener('click', async () => {
       if (leftScore === 0) return;
       await sendCmd(CMD.LEFT_DEC);
-      $leftScore.textContent = --leftScore;
+      if (!WIFI_MODE) $leftScore.textContent = --leftScore;
     });
 
     document.getElementById('right-inc').addEventListener('click', async () => {
       await sendCmd(CMD.TIMER_STOP);
-      stopLocalTimer();
+      if (!WIFI_MODE) stopLocalTimer();
       await sendCmd(CMD.RIGHT_INC);
-      $rightScore.textContent = ++rightScore;
+      if (!WIFI_MODE) $rightScore.textContent = ++rightScore;
     });
 
     document.getElementById('right-dec').addEventListener('click', async () => {
       if (rightScore === 0) return;
       await sendCmd(CMD.RIGHT_DEC);
-      $rightScore.textContent = --rightScore;
+      if (!WIFI_MODE) $rightScore.textContent = --rightScore;
     });
 
     // ── Settings modal ──
