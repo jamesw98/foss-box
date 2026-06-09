@@ -335,6 +335,9 @@ class FossBox:
         self.update_score_and_clock()
         return any_valid
 
+    """
+    Draws the pips for self denying touches or starting the bout.
+    """
     def draw_pips(self, left_presses, right_presses, pip_y, show_left=True, show_right=True):
         pip_size = 4
         pip_gap = 2
@@ -349,6 +352,9 @@ class FossBox:
                 color = Config.LIT_PIP_COLOR if i < right_presses else Config.UNLIT_PIP_COLOR
                 self.disp.fill_rect(right_pip_x + i * (pip_size + pip_gap), pip_y, pip_size, pip_size, color)
 
+    """
+    Checks if a weapon has been pressed, ignores bells. 
+    """
     def poll_weapon_presses(self, left_presses, right_presses, prev_left, prev_right):
         left, right, _, _ = self.check()
         if left and not prev_left:
@@ -357,6 +363,9 @@ class FossBox:
             right_presses = min(right_presses + 1, 2)
         return left_presses, right_presses, left, right
 
+    """
+    Checks if a fencer wants to self deny a touch. 
+    """
     def check_for_self_deny(self, left_valid, right_valid):
         start = Utils.ticks_ms()
         left_presses = 0
@@ -440,12 +449,38 @@ class FossBox:
         self.disp.update()
 
     """
+    Displays the end of bout message and resets the bout. 
+    """
+    def end_bout(self):
+        msg = Config.END_OF_BOUT_MSG
+        msg_width = self.disp.measure_text(msg, 1, font='bitmap6')
+        self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+        self.disp.draw_text(msg, (self.width - msg_width) // 2, (self.forth - 6) // 2, Config.GROUND_COLOR,
+                            font='bitmap6')
+        self.disp.update()
+        time.sleep(Config.END_OF_BOUT_DELAY_SECONDS)
+
+        self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
+        self.disp.update()
+        self.left_score = 0
+        self.right_score = 0
+        self.clock_seconds = Config.CLOCK_SECONDS
+        self.clock = Utils.format_clock(self.clock_seconds)
+        self.current_period = 1
+        self.wait_for_ready()
+        self.enguarde_ready_fence()
+        self.last_tick = Utils.ticks_ms()
+        self.clock_running = True
+
+    """
     Self-reffing main loop.
     """
     def run_self_reffed(self):
         self.current_period = 1
+        # Wait for the fencers to be ready. (Display the 2 unpipped pips)
         self.wait_for_ready()
 
+        # Beep en guarde, ready? fence.
         self.enguarde_ready_fence()
         self.last_tick = Utils.ticks_ms()
         self.clock_running = True
@@ -454,36 +489,26 @@ class FossBox:
             self.bt_check()
             any_valid = self.main_loop(self_reffed=True)
 
+            # If there were any valid touches, sound the beep and restart the timer.
             if any_valid:
+                if self.left_score == Config.SELF_REF_SCORE_MAX or self.right_score == Config.SELF_REF_SCORE_MAX:
+                    self.end_bout()
+                    continue
+
                 self.enguarde_ready_fence()
                 self.last_tick = Utils.ticks_ms()
                 self.clock_running = True
 
+            # If the timer runs out, give a break period, then start the next period
             if self.clock_seconds == 0:
                 self.clock_running = False
                 self.disp.beeper_on()
                 time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
                 self.disp.beeper_off()
 
+                # If we're at the end of the bout via time, display the end of bout message and restart.
                 if self.current_period >= Config.MAX_PERIODS:
-                    msg = Config.END_OF_BOUT_MSG
-                    msg_width = self.disp.measure_text(msg, 1, font='bitmap6')
-                    self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
-                    self.disp.draw_text(msg, (self.width - msg_width) // 2, (self.forth - 6) // 2, Config.GROUND_COLOR, font='bitmap6')
-                    self.disp.update()
-                    time.sleep(Config.END_OF_BOUT_DELAY_SECONDS)
-
-                    self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
-                    self.disp.update()
-                    self.left_score = 0
-                    self.right_score = 0
-                    self.clock_seconds = Config.CLOCK_SECONDS
-                    self.clock = Utils.format_clock(self.clock_seconds)
-                    self.current_period = 1
-                    self.wait_for_ready()
-                    self.enguarde_ready_fence()
-                    self.last_tick = Utils.ticks_ms()
-                    self.clock_running = True
+                    self.end_bout()
                     continue
 
                 self.clock_seconds = Config.PERIOD_BREAK
