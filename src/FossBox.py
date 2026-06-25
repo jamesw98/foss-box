@@ -290,13 +290,19 @@ class FossBox:
                     break
 
         if any_valid:
+            should_score = True
+            if self_reffed and double and self.left_score == Config.SELF_REF_SCORE_MAX - 1 and self.right_score == Config.SELF_REF_SCORE_MAX - 1 and self.current_period == Config.MAX_PERIODS:
+                should_score = False
+
             # If we have any valid touches, light up the box.
             if left_valid or double:
                 self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
-                self.left_score += 1
-            if right_valid or double:
+                if should_score:
+                    self.left_score += 1
+            if should_score and right_valid or double:
                 self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
-                self.right_score += 1
+                if should_score:
+                    self.right_score += 1
 
             # Stop the clock.
             self.clock_running = False
@@ -316,7 +322,7 @@ class FossBox:
             self.clear_lights()
 
             if self_reffed:
-                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
+                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid, should_score)
                 if left_deny:
                     self.left_score -= 1
                 if right_deny:
@@ -366,7 +372,7 @@ class FossBox:
     """
     Checks if a fencer wants to self deny a touch. 
     """
-    def check_for_self_deny(self, left_valid, right_valid):
+    def check_for_self_deny(self, left_valid, right_valid, should_score):
         start = Utils.ticks_ms()
         left_presses = 0
         right_presses = 0
