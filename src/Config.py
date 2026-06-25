@@ -94,3 +94,5 @@ EASTER_EGG_QUOTES = [
     "My log saw\nsomething\nthat night.",
     "Harry, is\nthat bag\nsmiling?"
 ]
+
+VERSION = "v1.0.1"

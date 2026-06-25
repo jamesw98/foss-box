@@ -257,6 +257,19 @@ class FossBox:
         time.sleep(0.6)
         self.disp.beeper_off()
 
+    def display_splash_screen(self):
+        mode_name = "sr" if self.mode == SelfRef else ("r" if self.mode == Ref else "s")
+        splash = f"{Config.VERSION}\nmode: {mode_name}\n"
+
+        if self.mode == SelfRef:
+            splash += f"ms: {Config.SELF_REF_SCORE_MAX} | mp: {Config.MAX_PERIODS}"
+
+        self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
+        self.disp.update()
+        time.sleep(3)
+        self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
+        self.disp.update()
+
     """
     Main logic of the box. 
     """
@@ -540,6 +553,8 @@ class FossBox:
     Runs the selected mode. 
     """
     def run(self):
+        self.display_splash_screen()
+
         if self.mode == Ref:
             self.run_reffed()
         elif self.mode == SelfRef:
