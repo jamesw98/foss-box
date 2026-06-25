@@ -266,7 +266,7 @@ class FossBox:
 
         self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
         self.disp.update()
-        time.sleep(3)
+        time.sleep(Config.SPLASH_DURATION)
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.update()
 
@@ -553,7 +553,8 @@ class FossBox:
     Runs the selected mode. 
     """
     def run(self):
-        self.display_splash_screen()
+        if Config.SPLASH_ENABLED:
+            self.display_splash_screen()
 
         if self.mode == Ref:
             self.run_reffed()

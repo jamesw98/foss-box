@@ -64,6 +64,10 @@ TOP_PADDING = 3
 CLOCK_ENABLED = True
 # Should the scores be enabled?
 SCORE_ENABLED = True
+# Should we display the bootup splash screen?
+SPLASH_ENABLED = True
+# How long should we display the splash screen in seconds?
+SPLASH_DURATION = 3
 
 """
 Color Config
