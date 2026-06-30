@@ -546,6 +546,11 @@ class FossBox:
                 self.clock_seconds = Config.CLOCK_SECONDS
                 self.clear_period()
                 self.current_period += 1
+
+                self.wait_for_ready()
+                self.last_tick = Utils.ticks_ms()
+                self.clock_running = True
+
                 self.enguarde_ready_fence()
                 self.clock_running = True
 
