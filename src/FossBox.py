@@ -233,7 +233,7 @@ class FossBox:
         # Show the period indicator as 2x2 orange squares in the bottom-left.
         if self.current_period > 0:
             for i in range(self.current_period):
-                self.disp.fill_rect(i * 4, self.height - 3, 2, 2, Config.BT_CONNECTED_COLOR)
+                self.disp.fill_rect(i * 4, self.height - 3, 2, 2, Config.LIT_PIP_COLOR)
 
         self.disp.update()
 
