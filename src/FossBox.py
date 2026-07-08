@@ -96,7 +96,7 @@ class FossBox:
     Clears the period indicator below the clock.
     """
     def clear_period(self):
-        self.disp.fill_rect(0, self.height - 3, self.current_period * 4, 2, Config.BLACK)
+        self.disp.fill_rect(0, self.height - 3, Config.MAX_PERIODS * 4, 2, Config.BLACK)
         self.disp.update()
 
     """
@@ -230,10 +230,11 @@ class FossBox:
             self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
             self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
 
-        # Show the period indicator as 2x2 orange squares in the bottom-left.
-        if self.current_period > 0:
-            for i in range(self.current_period):
-                self.disp.fill_rect(i * 4, self.height - 3, 2, 2, Config.LIT_PIP_COLOR)
+        # Show the period indicator as 2x2 squares in the bottom-left: elapsed/current
+        # periods are LIT_PIP_COLOR, upcoming periods are UNLIT_PIP_COLOR.
+        for i in range(Config.MAX_PERIODS):
+            color = Config.LIT_PIP_COLOR if i < self.current_period else Config.UNLIT_PIP_COLOR
+            self.disp.fill_rect(i * 4, self.height - 3, 2, 2, color)
 
         self.disp.update()
 
@@ -297,6 +298,7 @@ class FossBox:
                 if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
                     left_valid = True
                     right_valid = True
+                    double = True
                     break
 
                 if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
