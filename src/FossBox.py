@@ -128,7 +128,7 @@ class FossBox:
     Draws the Bluetooth ID in the bottom right corner. Shown until a device connects.
     """
     def draw_bt_id(self):
-        if not Config.BT_ID_ENABLE or self.mode == SelfRef:
+        if not Config.BT_ID_ENABLED or self.mode == SelfRef:
             return
 
         text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
