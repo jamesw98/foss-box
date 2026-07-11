@@ -1,7 +1,6 @@
 import Utils
 import time
 import Config
-import json
 
 try:
     import uos as uos
@@ -10,11 +9,6 @@ except ImportError:
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
-
-# MicroPython doesn't have enums apparently, sad!
-Ref = 0
-SelfRef = 1
-DumbBox = 2
 
 class FossBox:
     def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
@@ -46,29 +40,7 @@ class FossBox:
             except Exception as e:
                 print("BLE init failed:", e)
 
-        self.mode = Ref
-        self.mode_check()
-    
-    """
-    Writes the current mode to runtime_config.json so it persists across reboots.
-    """
-    def save_mode(self):
-        with open("runtime_config.json", "w") as f:
-            json.dump({"mode": self.mode}, f)
-
-    """
-    Checks to runtime_config file to see what mode the box was last in. If this file doesn't exist, create it and set it
-    to the "Ref" mode.
-    """
-    def mode_check(self):
-        if "runtime_config.json" in uos.listdir():
-            with open("runtime_config.json", "rb") as f:
-                raw = f.read()
-                runtime_conf = json.loads(raw.decode("utf-8").strip())
-                self.mode = runtime_conf.get("mode", Ref)
-        else:
-            with open("runtime_config.json", "w") as f:
-                json.dump({"mode": Ref}, f)
+        self.mode = Utils.json_mode_check()
 
     """
     Checks for valid touches and bell guard touches. 
@@ -128,7 +100,7 @@ class FossBox:
     Draws the Bluetooth ID in the bottom right corner. Shown until a device connects.
     """
     def draw_bt_id(self):
-        if not Config.BT_ID_ENABLED or self.mode == SelfRef:
+        if not Config.BT_ID_ENABLED or self.mode == Utils.SelfRef:
             return
 
         text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
@@ -190,7 +162,7 @@ class FossBox:
             self.clock = Utils.format_clock(self.clock_seconds)
         elif cmd == Bluetooth.CMD_SET_MODE and len(data) >= 2:
             self.mode = data[1]
-            self.save_mode()
+            Utils.json_update_prop("mode", self.mode)
 
     """
     Polls for any BT messages. 
@@ -259,10 +231,10 @@ class FossBox:
         self.disp.beeper_off()
 
     def display_splash_screen(self):
-        mode_name = "sr" if self.mode == SelfRef else ("r" if self.mode == Ref else "s")
+        mode_name = "sr" if self.mode == Utils.SelfRef else ("r" if self.mode == Utils.Ref else "s")
         splash = f"{Config.VERSION}\nmode: {mode_name}\n"
 
-        if self.mode == SelfRef:
+        if self.mode == Utils.SelfRef:
             splash += f"ms: {Config.SELF_REF_SCORE_MAX} | mp: {Config.MAX_PERIODS}"
 
         self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
@@ -563,11 +535,11 @@ class FossBox:
         if Config.SPLASH_ENABLED:
             self.display_splash_screen()
 
-        if self.mode == Ref:
+        if self.mode == Utils.Ref:
             self.run_reffed()
-        elif self.mode == SelfRef:
+        elif self.mode == Utils.SelfRef:
             self.run_self_reffed()
-        elif self.mode == DumbBox:
+        elif self.mode == Utils.DumbBox:
             # Python lets me do this? Wacky.
             Config.SCORE_ENABLED = False
             Config.CLOCK_ENABLED = False

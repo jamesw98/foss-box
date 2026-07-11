@@ -1,9 +1,8 @@
-import Config
 import time
 from IFossBoxDisplay import IFossBoxDisplay
 
 class PimoroniI75(IFossBoxDisplay):
-    def __init__(self, width=64, height=32):
+    def __init__(self, pins, width=64, height=32):
         super().__init__()
         from interstate75 import Interstate75
         from machine import Pin
@@ -12,7 +11,14 @@ class PimoroniI75(IFossBoxDisplay):
         self.graphics.set_font('bitmap8')
         self.width = width
         self.height = height
-        self.beeper = Pin(Config.BUZZER_PIN, Pin.OUT, value=1)
+
+        self.weapon_left_pin = pins["weapon_left"]
+        self.weapon_right_pin = pins["weapon_right"]
+        self.bell_left_pin = pins["bell_left"]
+        self.bell_right_pin = pins["bell_right"]
+        self.buzzer_pin = pins["buzzer"]
+
+        self.beeper = Pin(self.buzzer_pin, Pin.OUT, value=1)
 
     def fill_rect(self, x, y, w, h, color):
         self.graphics.set_pen(self.graphics.create_pen(*color))
@@ -45,16 +51,16 @@ class PimoroniI75(IFossBoxDisplay):
         self.beeper.value(1)
 
     def weapon_left(self):
-        return self._button(Config.WEAPON_LEFT_PIN)
+        return self._button(self.weapon_left_pin)
 
     def weapon_right(self):
-        return self._button(Config.WEAPON_RIGHT_PIN)
+        return self._button(self.weapon_right_pin)
 
     def bell_left(self):
-        return self._button(Config.BELL_LEFT_PIN)
+        return self._button(self.bell_left_pin)
 
     def bell_right(self):
-        return self._button(Config.BELL_RIGHT_PIN)
+        return self._button(self.bell_right_pin)
 
     def _button(self, pin_num):
         from machine import Pin

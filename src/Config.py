@@ -68,6 +68,8 @@ SCORE_ENABLED = True
 SPLASH_ENABLED = True
 # How long should we display the splash screen in seconds?
 SPLASH_DURATION = 3
+# Danger! Should we overwrite the runtime config for GPIO pins?
+RT_CONF_OVERWRITE = False
 
 """
 Color Config
