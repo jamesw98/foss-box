@@ -1,7 +1,6 @@
 import Utils
 import time
 import Config
-import json
 
 try:
     import uos as uos
@@ -10,11 +9,6 @@ except ImportError:
 
 if Config.BLUETOOTH_ENABLED:
     import Bluetooth
-
-# MicroPython doesn't have enums apparently, sad!
-Ref = 0
-SelfRef = 1
-DumbBox = 2
 
 class FossBox:
     def __init__(self, disp, weapon_left, weapon_right, bell_left, bell_right):
@@ -46,29 +40,7 @@ class FossBox:
             except Exception as e:
                 print("BLE init failed:", e)
 
-        self.mode = Ref
-        self.mode_check()
-    
-    """
-    Writes the current mode to runtime_config.json so it persists across reboots.
-    """
-    def save_mode(self):
-        with open("runtime_config.json", "w") as f:
-            json.dump({"mode": self.mode}, f)
-
-    """
-    Checks to runtime_config file to see what mode the box was last in. If this file doesn't exist, create it and set it
-    to the "Ref" mode.
-    """
-    def mode_check(self):
-        if "runtime_config.json" in uos.listdir():
-            with open("runtime_config.json", "rb") as f:
-                raw = f.read()
-                runtime_conf = json.loads(raw.decode("utf-8").strip())
-                self.mode = runtime_conf.get("mode", Ref)
-        else:
-            with open("runtime_config.json", "w") as f:
-                json.dump({"mode": Ref}, f)
+        self.mode = Utils.json_mode_check()
 
     """
     Checks for valid touches and bell guard touches. 
@@ -96,7 +68,7 @@ class FossBox:
     Clears the period indicator below the clock.
     """
     def clear_period(self):
-        self.disp.fill_rect(0, self.height - 3, self.current_period * 4, 2, Config.BLACK)
+        self.disp.fill_rect(0, self.height - 3, Config.MAX_PERIODS * 4, 2, Config.BLACK)
         self.disp.update()
 
     """
@@ -128,7 +100,7 @@ class FossBox:
     Draws the Bluetooth ID in the bottom right corner. Shown until a device connects.
     """
     def draw_bt_id(self):
-        if not Config.BT_ID_ENABLED:
+        if not Config.BT_ID_ENABLED or self.mode == Utils.SelfRef:
             return
 
         text_width = self.disp.measure_text(Config.BLUETOOTH_ID, 1, font='bitmap6')
@@ -190,7 +162,7 @@ class FossBox:
             self.clock = Utils.format_clock(self.clock_seconds)
         elif cmd == Bluetooth.CMD_SET_MODE and len(data) >= 2:
             self.mode = data[1]
-            self.save_mode()
+            Utils.json_update_prop("mode", self.mode)
 
     """
     Polls for any BT messages. 
@@ -230,10 +202,11 @@ class FossBox:
             self.disp.draw_text(left_num, Config.SIDE_PADDING, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
             self.disp.draw_text(right_num, right_x, self.forth + Config.TOP_PADDING, Config.SCORE_COLOR)
 
-        # Show the period indicator as 2x2 orange squares in the bottom-left.
-        if self.current_period > 0:
-            for i in range(self.current_period):
-                self.disp.fill_rect(i * 4, self.height - 3, 2, 2, Config.BT_CONNECTED_COLOR)
+        # Show the period indicator as 2x2 squares in the bottom-left: elapsed/current
+        # periods are LIT_PIP_COLOR, upcoming periods are UNLIT_PIP_COLOR.
+        for i in range(Config.MAX_PERIODS):
+            color = Config.LIT_PIP_COLOR if i < self.current_period else Config.UNLIT_PIP_COLOR
+            self.disp.fill_rect(i * 4, self.height - 3, 2, 2, color)
 
         self.disp.update()
 
@@ -256,6 +229,63 @@ class FossBox:
         self.disp.beeper_on()   # fence
         time.sleep(0.6)
         self.disp.beeper_off()
+
+    """
+    Draws the splash text, using the given max score/periods for the self reffing line.
+    """
+    def draw_splash_text(self, max_score, max_periods):
+        mode_name = "sr" if self.mode == Utils.SelfRef else ("r" if self.mode == Utils.Ref else "s")
+        splash = f"{Config.VERSION}\nmode: {mode_name}\n"
+
+        if self.mode == Utils.SelfRef:
+            splash += f"ms: {max_score} | mp: {max_periods}"
+
+        self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
+        self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
+
+    def display_splash_screen(self):
+        max_score = Config.SELF_REF_SCORE_MAX
+        max_periods = Config.MAX_PERIODS
+        preset_index = None
+
+        self.draw_splash_text(max_score, max_periods)
+        self.disp.update()
+
+        start = Utils.ticks_ms()
+        duration_ms = Config.SPLASH_DURATION * 1000
+        bar_h = Config.SPLASH_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        prev_left = False
+        prev_right = False
+        last_cycle = Utils.ticks_add(start, -Config.SPLASH_CYCLE_DELAY)
+
+        while True:
+            now = Utils.ticks_ms()
+            elapsed = Utils.ticks_diff(now, start)
+            if elapsed >= duration_ms:
+                break
+
+            bar_width = self.width * (duration_ms - elapsed) // duration_ms
+            self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+            self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
+            self.disp.update()
+
+            if self.mode == Utils.SelfRef:
+                left_valid, right_valid, _, _ = self.check()
+                touched = (left_valid and not prev_left) or (right_valid and not prev_right)
+                if touched and Utils.ticks_diff(now, last_cycle) >= Config.SPLASH_CYCLE_DELAY:
+                    preset_index = 0 if preset_index is None else (preset_index + 1) % len(Config.SELF_REF_PRESETS)
+                    max_score, max_periods = Config.SELF_REF_PRESETS[preset_index]
+                    self.draw_splash_text(max_score, max_periods)
+                    last_cycle = now
+                prev_left, prev_right = left_valid, right_valid
+
+        if self.mode == Utils.SelfRef and preset_index is not None:
+            Config.SELF_REF_SCORE_MAX = max_score
+            Config.MAX_PERIODS = max_periods
+
+        self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
+        self.disp.update()
 
     """
     Main logic of the box. 
@@ -284,19 +314,26 @@ class FossBox:
                 if (waiting_for == 'left' and left) or (waiting_for == 'right' and right):
                     left_valid = True
                     right_valid = True
+                    double = True
                     break
 
                 if Utils.ticks_diff(Utils.ticks_ms(), start) >= Config.DOUBLE_LOCKOUT:
                     break
 
         if any_valid:
+            should_score = True
+            if self_reffed and double and self.left_score == Config.SELF_REF_SCORE_MAX - 1 and self.right_score == Config.SELF_REF_SCORE_MAX - 1 and self.current_period == Config.MAX_PERIODS:
+                should_score = False
+
             # If we have any valid touches, light up the box.
             if left_valid or double:
                 self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
-                self.left_score += 1
-            if right_valid or double:
+                if should_score:
+                    self.left_score += 1
+            if should_score and right_valid or double:
                 self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
-                self.right_score += 1
+                if should_score:
+                    self.right_score += 1
 
             # Stop the clock.
             self.clock_running = False
@@ -316,7 +353,7 @@ class FossBox:
             self.clear_lights()
 
             if self_reffed:
-                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
+                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid, should_score)
                 if left_deny:
                     self.left_score -= 1
                 if right_deny:
@@ -366,7 +403,7 @@ class FossBox:
     """
     Checks if a fencer wants to self deny a touch. 
     """
-    def check_for_self_deny(self, left_valid, right_valid):
+    def check_for_self_deny(self, left_valid, right_valid, should_score):
         start = Utils.ticks_ms()
         left_presses = 0
         right_presses = 0
@@ -527,6 +564,11 @@ class FossBox:
                 self.clock_seconds = Config.CLOCK_SECONDS
                 self.clear_period()
                 self.current_period += 1
+
+                self.wait_for_ready()
+                self.last_tick = Utils.ticks_ms()
+                self.clock_running = True
+
                 self.enguarde_ready_fence()
                 self.clock_running = True
 
@@ -534,11 +576,14 @@ class FossBox:
     Runs the selected mode. 
     """
     def run(self):
-        if self.mode == Ref:
+        if Config.SPLASH_ENABLED:
+            self.display_splash_screen()
+
+        if self.mode == Utils.Ref:
             self.run_reffed()
-        elif self.mode == SelfRef:
+        elif self.mode == Utils.SelfRef:
             self.run_self_reffed()
-        elif self.mode == DumbBox:
+        elif self.mode == Utils.DumbBox:
             # Python lets me do this? Wacky.
             Config.SCORE_ENABLED = False
             Config.CLOCK_ENABLED = False

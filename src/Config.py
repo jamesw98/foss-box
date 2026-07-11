@@ -41,13 +41,15 @@ CLOCK_SECONDS = 180
 Self reffing config
 """
 # How long the fencers have to deny a touch in self reffing mode.
-SELF_DENY_DELAY = 3000
+SELF_DENY_DELAY = 5000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
 # How should we indicate that a fencer is ready in self reffing mode?
 SELF_REF_READY = 'ready'
 # What should the fencers fence to during self reffing?
 SELF_REF_SCORE_MAX = 15
+# Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
+SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
 
 """
 General config
@@ -64,6 +66,16 @@ TOP_PADDING = 3
 CLOCK_ENABLED = True
 # Should the scores be enabled?
 SCORE_ENABLED = True
+# Should we display the bootup splash screen?
+SPLASH_ENABLED = True
+# How long should we display the splash screen in seconds?
+SPLASH_DURATION = 3
+# How tall should the splash screen countdown bar be in pixels?
+SPLASH_COUNTDOWN_HEIGHT = 1
+# Minimum delay in ms between preset cycles on the splash screen, to debounce a held touch.
+SPLASH_CYCLE_DELAY = 400
+# Danger! Should we overwrite the runtime config for GPIO pins?
+RT_CONF_OVERWRITE = False
 
 """
 Color Config
@@ -94,3 +106,5 @@ EASTER_EGG_QUOTES = [
     "My log saw\nsomething\nthat night.",
     "Harry, is\nthat bag\nsmiling?"
 ]
+
+VERSION = "v1.1.0"

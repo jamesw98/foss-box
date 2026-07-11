@@ -38,7 +38,7 @@ class MatrixPortalS3(IFossBoxDisplay):
     FONT_MAIN  = "/fonts/5x8.bdf"  # used for bitmap8 (scores, clock)
     FONT_SMALL = "/fonts/4x6.bdf"  # used for bitmap6 (BT ID)
 
-    def __init__(self, width=64, height=32):
+    def __init__(self, pins=None, width=64, height=32):
         super().__init__()
         displayio.release_displays()
 
