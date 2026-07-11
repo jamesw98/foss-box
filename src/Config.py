@@ -48,6 +48,8 @@ SELF_DENY_COUNTDOWN_HEIGHT = 1
 SELF_REF_READY = 'ready'
 # What should the fencers fence to during self reffing?
 SELF_REF_SCORE_MAX = 15
+# Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
+SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
 
 """
 General config
@@ -68,6 +70,10 @@ SCORE_ENABLED = True
 SPLASH_ENABLED = True
 # How long should we display the splash screen in seconds?
 SPLASH_DURATION = 3
+# How tall should the splash screen countdown bar be in pixels?
+SPLASH_COUNTDOWN_HEIGHT = 1
+# Minimum delay in ms between preset cycles on the splash screen, to debounce a held touch.
+SPLASH_CYCLE_DELAY = 400
 # Danger! Should we overwrite the runtime config for GPIO pins?
 RT_CONF_OVERWRITE = False
 

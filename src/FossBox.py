@@ -230,16 +230,60 @@ class FossBox:
         time.sleep(0.6)
         self.disp.beeper_off()
 
-    def display_splash_screen(self):
+    """
+    Draws the splash text, using the given max score/periods for the self reffing line.
+    """
+    def draw_splash_text(self, max_score, max_periods):
         mode_name = "sr" if self.mode == Utils.SelfRef else ("r" if self.mode == Utils.Ref else "s")
         splash = f"{Config.VERSION}\nmode: {mode_name}\n"
 
         if self.mode == Utils.SelfRef:
-            splash += f"ms: {Config.SELF_REF_SCORE_MAX} | mp: {Config.MAX_PERIODS}"
+            splash += f"ms: {max_score} | mp: {max_periods}"
 
+        self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
+
+    def display_splash_screen(self):
+        max_score = Config.SELF_REF_SCORE_MAX
+        max_periods = Config.MAX_PERIODS
+        preset_index = None
+
+        self.draw_splash_text(max_score, max_periods)
         self.disp.update()
-        time.sleep(Config.SPLASH_DURATION)
+
+        start = Utils.ticks_ms()
+        duration_ms = Config.SPLASH_DURATION * 1000
+        bar_h = Config.SPLASH_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        prev_left = False
+        prev_right = False
+        last_cycle = Utils.ticks_add(start, -Config.SPLASH_CYCLE_DELAY)
+
+        while True:
+            now = Utils.ticks_ms()
+            elapsed = Utils.ticks_diff(now, start)
+            if elapsed >= duration_ms:
+                break
+
+            bar_width = self.width * (duration_ms - elapsed) // duration_ms
+            self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+            self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
+            self.disp.update()
+
+            if self.mode == Utils.SelfRef:
+                left_valid, right_valid, _, _ = self.check()
+                touched = (left_valid and not prev_left) or (right_valid and not prev_right)
+                if touched and Utils.ticks_diff(now, last_cycle) >= Config.SPLASH_CYCLE_DELAY:
+                    preset_index = 0 if preset_index is None else (preset_index + 1) % len(Config.SELF_REF_PRESETS)
+                    max_score, max_periods = Config.SELF_REF_PRESETS[preset_index]
+                    self.draw_splash_text(max_score, max_periods)
+                    last_cycle = now
+                prev_left, prev_right = left_valid, right_valid
+
+        if self.mode == Utils.SelfRef and preset_index is not None:
+            Config.SELF_REF_SCORE_MAX = max_score
+            Config.MAX_PERIODS = max_periods
+
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.update()
 
