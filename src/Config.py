@@ -35,7 +35,7 @@ END_OF_BOUT_DELAY_SECONDS = 10
 # How long should the period break be in seconds?
 PERIOD_BREAK = 60
 # Clock start time, in seconds.
-CLOCK_SECONDS = 180
+CLOCK_SECONDS = 5
 
 """
 Self reffing config
@@ -60,6 +60,8 @@ SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
 PRIORITY_LOWER_BOUND = 5
 # The maximum number of "flashes" for priority
 PRIORITY_UPPER_BOUND = 15
+# How long should the priority period be?
+PRIORITY_SECONDS = 60
 
 """
 General config

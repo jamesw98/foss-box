@@ -32,6 +32,7 @@ class FossBox:
         self.last_tick = Utils.ticks_ms()
         self.clock_running = False
         self.current_period = 0
+        self.priority = False
 
         self.bt = None
         self.bt_was_connected = False
@@ -626,19 +627,17 @@ class FossBox:
                 time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
                 self.disp.beeper_off()
 
-                priority = False
-
                 # If we're at the end of the bout via time, display the end of bout message and restart.
                 if self.current_period >= Config.MAX_PERIODS:
-                    if self.left_score != self.right_score:
+                    if self.priority or self.left_score != self.right_score:
                         self.end_bout()
                         continue
 
-                    priority = True
+                    self.priority = True
                     self.pick_priority()
-                    self.clock_seconds = 60
+                    self.clock_seconds = Config.PRIORITY_SECONDS
 
-                if not priority:
+                if not self.priority:
                     self.clock_seconds = Config.PERIOD_BREAK
                     self.clock_running = True
 
