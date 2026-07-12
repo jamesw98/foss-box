@@ -35,7 +35,7 @@ END_OF_BOUT_DELAY_SECONDS = 10
 # How long should the period break be in seconds?
 PERIOD_BREAK = 60
 # Clock start time, in seconds.
-CLOCK_SECONDS = 180
+CLOCK_SECONDS = 5
 
 """
 Self reffing config
@@ -44,12 +44,24 @@ Self reffing config
 SELF_DENY_DELAY = 5000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
+# How long a fencer must hold their weapon down after self-denying before the bout pauses, in ms.
+SELF_DENY_HOLD_PAUSE_DELAY = 1000
+# How tall should the self deny hold pause count up bar be in pixels?
+SELF_DENY_HOLD_PAUSE_HEIGHT = 1
+# What color should the self deny hold pause count up bar be?
+SELF_DENY_HOLD_PAUSE_COLOR = (0, 255, 0)
 # How should we indicate that a fencer is ready in self reffing mode?
 SELF_REF_READY = 'ready'
 # What should the fencers fence to during self reffing?
 SELF_REF_SCORE_MAX = 15
 # Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
 SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
+# The minimum number of "flashes" for priority
+PRIORITY_LOWER_BOUND = 5
+# The maximum number of "flashes" for priority
+PRIORITY_UPPER_BOUND = 15
+# How long should the priority period be?
+PRIORITY_SECONDS = 60
 
 """
 General config
@@ -107,4 +119,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.0"
+VERSION = "v1.1.2"
