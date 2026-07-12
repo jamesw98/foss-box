@@ -44,6 +44,12 @@ Self reffing config
 SELF_DENY_DELAY = 5000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
+# How long a fencer must hold their weapon down after self-denying before the bout pauses, in ms.
+SELF_DENY_HOLD_PAUSE_DELAY = 1000
+# How tall should the self deny hold pause count up bar be in pixels?
+SELF_DENY_HOLD_PAUSE_HEIGHT = 1
+# What color should the self deny hold pause count up bar be?
+SELF_DENY_HOLD_PAUSE_COLOR = (0, 255, 0)
 # How should we indicate that a fencer is ready in self reffing mode?
 SELF_REF_READY = 'ready'
 # What should the fencers fence to during self reffing?

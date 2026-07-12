@@ -401,35 +401,91 @@ class FossBox:
         return left_presses, right_presses, left, right
 
     """
-    Checks if a fencer wants to self deny a touch. 
+    Checks if a fencer wants to self deny a touch. If a fencer holds their
+    weapon down continuously for SELF_DENY_HOLD_PAUSE_DELAY ms after reaching
+    their second (denying) press, pauses the bout and re-enters the waiting
+    for ready flow.
     """
     def check_for_self_deny(self, left_valid, right_valid, should_score):
-        start = Utils.ticks_ms()
+        deny_elapsed = 0
+        last_tick = Utils.ticks_ms()
         left_presses = 0
         right_presses = 0
         prev_left = False
         prev_right = False
+        left_hold_start = None
+        right_hold_start = None
         bar_h = Config.SELF_DENY_COUNTDOWN_HEIGHT
         bar_y = self.height - bar_h
+        hold_bar_h = Config.SELF_DENY_HOLD_PAUSE_HEIGHT
         deny_ms = Config.SELF_DENY_DELAY
+        hold_ms = Config.SELF_DENY_HOLD_PAUSE_DELAY
         pip_y = self.forth - 4 - 2
 
         while True:
-            elapsed = Utils.ticks_diff(Utils.ticks_ms(), start)
-            if elapsed >= deny_ms:
+            now = Utils.ticks_ms()
+            deny_delta = Utils.ticks_diff(now, last_tick)
+            last_tick = now
+
+            self.draw_pips(left_presses, right_presses, pip_y, show_left=left_valid, show_right=right_valid)
+
+            left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
+            left_hold_start, right_hold_start, hold_elapsed = self.track_hold_pause(left_presses, right_presses, prev_left, prev_right, left_hold_start, right_hold_start, now)
+
+            # Only advance the deny countdown while a fencer isn't building up a hold pause.
+            if hold_elapsed == 0:
+                deny_elapsed += deny_delta
+
+            if deny_elapsed >= deny_ms:
                 self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
                 self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
                 self.disp.update()
                 return left_valid and left_presses >= 2, right_valid and right_presses >= 2
 
-            bar_width = self.width * (deny_ms - elapsed) // deny_ms
+            bar_width = self.width * (deny_ms - deny_elapsed) // deny_ms
             self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
             self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
 
-            self.draw_pips(left_presses, right_presses, pip_y, show_left=left_valid, show_right=right_valid)
+            self.disp.fill_rect(0, 0, self.width, hold_bar_h, Config.BLACK)
+            if hold_elapsed > 0:
+                hold_bar_width = self.width * min(hold_elapsed, hold_ms) // hold_ms
+                self.disp.fill_rect(0, 0, hold_bar_width, hold_bar_h, Config.SELF_DENY_HOLD_PAUSE_COLOR)
+
             self.disp.update()
 
-            left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
+            if hold_elapsed >= hold_ms:
+                self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+                self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+                self.disp.update()
+
+                left_deny = left_valid and left_presses >= 2
+                right_deny = right_valid and right_presses >= 2
+                self.clock_running = False
+                self.wait_for_ready()
+                return left_deny, right_deny
+
+    """
+    Tracks how long a fencer has continuously held their weapon down since
+    reaching two self deny presses. Returns the updated hold start times and
+    the longest continuous hold duration in ms (0 if neither side is holding).
+    """
+    def track_hold_pause(self, left_presses, right_presses, left_now, right_now, left_hold_start, right_hold_start, now):
+        if left_presses >= 2 and left_now:
+            if left_hold_start is None:
+                left_hold_start = now
+        else:
+            left_hold_start = None
+
+        if right_presses >= 2 and right_now:
+            if right_hold_start is None:
+                right_hold_start = now
+        else:
+            right_hold_start = None
+
+        left_elapsed = Utils.ticks_diff(now, left_hold_start) if left_hold_start is not None else 0
+        right_elapsed = Utils.ticks_diff(now, right_hold_start) if right_hold_start is not None else 0
+
+        return left_hold_start, right_hold_start, max(left_elapsed, right_elapsed)
 
     """
     Main loop for the reffed version of the box. This is the default loop and assumes that a Bluetooth PWA remote is
