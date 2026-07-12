@@ -1,6 +1,7 @@
 import Utils
 import time
 import Config
+import random
 
 try:
     import uos as uos
@@ -287,6 +288,12 @@ class FossBox:
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.update()
 
+    def light(self, side):
+        if side == "left":
+            self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
+        else:
+            self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
+
     """
     Main logic of the box. 
     """
@@ -327,11 +334,11 @@ class FossBox:
 
             # If we have any valid touches, light up the box.
             if left_valid or double:
-                self.disp.fill_rect(0, 0, self.half, self.forth, Config.LEFT_COLOR)
+                self.light("left")
                 if should_score:
                     self.left_score += 1
             if should_score and right_valid or double:
-                self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
+                self.light("right")
                 if should_score:
                     self.right_score += 1
 
@@ -353,7 +360,7 @@ class FossBox:
             self.clear_lights()
 
             if self_reffed:
-                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid, should_score)
+                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
                 if left_deny:
                     self.left_score -= 1
                 if right_deny:
@@ -406,7 +413,7 @@ class FossBox:
     their second (denying) press, pauses the bout and re-enters the waiting
     for ready flow.
     """
-    def check_for_self_deny(self, left_valid, right_valid, should_score):
+    def check_for_self_deny(self, left_valid, right_valid):
         deny_elapsed = 0
         last_tick = Utils.ticks_ms()
         left_presses = 0
@@ -566,6 +573,26 @@ class FossBox:
         self.clock_running = True
 
     """
+    Randomly chooses priority. 
+    """
+    def pick_priority(self):
+        sides = ["left", "right"]
+        choice = "left"
+        for i in range(random.randint(Config.PRIORITY_LOWER_BOUND, Config.PRIORITY_UPPER_BOUND)):
+            choice = sides[i % 2]
+            self.light(choice)
+            self.disp.update()
+            time.sleep(0.3)
+            self.clear_lights()
+            self.disp.update()
+
+        self.light(choice)
+        self.disp.update()
+        time.sleep(1)
+        self.clear_lights()
+        self.disp.update()
+
+    """
     Self-reffing main loop.
     """
     def run_self_reffed(self):
@@ -599,27 +626,35 @@ class FossBox:
                 time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
                 self.disp.beeper_off()
 
+                priority = False
+
                 # If we're at the end of the bout via time, display the end of bout message and restart.
                 if self.current_period >= Config.MAX_PERIODS:
-                    self.end_bout()
-                    continue
+                    if self.left_score != self.right_score:
+                        self.end_bout()
+                        continue
 
-                self.clock_seconds = Config.PERIOD_BREAK
-                self.clock_running = True
+                    priority = True
+                    self.pick_priority()
+                    self.clock_seconds = 60
 
-                self.last_tick = Utils.ticks_ms()
-                while self.clock_seconds > 0:
-                    if Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000:
-                        self.clear_clock()
-                        self.clock_seconds -= 1
-                        self.last_tick = Utils.ticks_add(self.last_tick, 1000)
-                        self.clock = Utils.format_clock(self.clock_seconds)
-                    self.update_score_and_clock()
+                if not priority:
+                    self.clock_seconds = Config.PERIOD_BREAK
+                    self.clock_running = True
 
-                self.clock_running = False
-                self.clock_seconds = Config.CLOCK_SECONDS
-                self.clear_period()
-                self.current_period += 1
+                    self.last_tick = Utils.ticks_ms()
+                    while self.clock_seconds > 0:
+                        if Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000:
+                            self.clear_clock()
+                            self.clock_seconds -= 1
+                            self.last_tick = Utils.ticks_add(self.last_tick, 1000)
+                            self.clock = Utils.format_clock(self.clock_seconds)
+                        self.update_score_and_clock()
+
+                    self.clock_running = False
+                    self.clock_seconds = Config.CLOCK_SECONDS
+                    self.clear_period()
+                    self.current_period += 1
 
                 self.wait_for_ready()
                 self.last_tick = Utils.ticks_ms()
@@ -632,6 +667,7 @@ class FossBox:
     Runs the selected mode. 
     """
     def run(self):
+        # self.pick_priority()
         if Config.SPLASH_ENABLED:
             self.display_splash_screen()
 
@@ -646,6 +682,5 @@ class FossBox:
             Config.BT_ID_ENABLED = False
             self.run_reffed()
         else:
-            import random
             self.disp.draw_text(random.choice(Config.EASTER_EGG_QUOTES), 0, 0, Config.LEFT_COLOR, font="bitmap6")
             self.disp.update()

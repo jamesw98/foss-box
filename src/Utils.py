@@ -12,6 +12,9 @@ Ref = 0
 SelfRef = 1
 DumbBox = 2
 
+"""
+Timing related methods.
+"""
 def format_clock(s):
    return "{:d}:{:02d}".format(s // 60, s % 60)
 
@@ -33,6 +36,9 @@ def ticks_add(t, delta):
     except AttributeError:
         return t + delta
 
+"""
+JSON realted methods.
+"""
 def json_load_runtime_config():
     if "runtime_config.json" in uos.listdir():
         with open("runtime_config.json", "rb") as f:

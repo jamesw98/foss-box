@@ -56,6 +56,10 @@ SELF_REF_READY = 'ready'
 SELF_REF_SCORE_MAX = 15
 # Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
 SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
+# The minimum number of "flashes" for priority
+PRIORITY_LOWER_BOUND = 5
+# The maximum number of "flashes" for priority
+PRIORITY_UPPER_BOUND = 15
 
 """
 General config
