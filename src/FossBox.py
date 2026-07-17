@@ -361,14 +361,13 @@ class FossBox:
             self.clear_lights()
 
             if self_reffed:
-                left_deny, right_deny = self.check_for_self_deny(left_valid, right_valid)
-                if left_deny:
-                    self.left_score -= 1
-                if right_deny:
-                    self.right_score -= 1
-
-            self.clear_score(self.left_score - 1, 'left')
-            self.clear_score(self.right_score - 1, 'right')
+                # check_for_self_deny() already resolves any deny decision and
+                # resyncs the display before it returns (see resolve_self_deny()),
+                # since wait_for_ready() may redraw the score mid-pause.
+                self.check_for_self_deny(left_valid, right_valid)
+            else:
+                self.clear_score(self.left_score - 1, 'left')
+                self.clear_score(self.right_score - 1, 'right')
 
         # Update the clock every second.
         if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
@@ -448,7 +447,7 @@ class FossBox:
                 self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
                 self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
                 self.disp.update()
-                return left_valid and left_presses >= 2, right_valid and right_presses >= 2
+                return self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses)
 
             bar_width = self.width * (deny_ms - deny_elapsed) // deny_ms
             self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
@@ -466,11 +465,30 @@ class FossBox:
                 self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
                 self.disp.update()
 
-                left_deny = left_valid and left_presses >= 2
-                right_deny = right_valid and right_presses >= 2
+                left_deny, right_deny = self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses)
+
                 self.clock_running = False
                 self.wait_for_ready()
                 return left_deny, right_deny
+
+    """
+    Resolves a self-deny decision: reverts the score for any denied side and
+    resyncs the display to the final values immediately, before wait_for_ready()
+    (or anything else) redraws the score again without clearing first.
+    """
+    def resolve_self_deny(self, left_valid, right_valid, left_presses, right_presses):
+        left_deny = left_valid and left_presses >= 2
+        right_deny = right_valid and right_presses >= 2
+
+        self.clear_score(self.left_score - 1, 'left')
+        self.clear_score(self.right_score - 1, 'right')
+        if left_deny:
+            self.left_score -= 1
+        if right_deny:
+            self.right_score -= 1
+        self.update_score_and_clock()
+
+        return left_deny, right_deny
 
     """
     Tracks how long a fencer has continuously held their weapon down since
@@ -543,6 +561,14 @@ class FossBox:
                 self.disp.draw_text(Config.SELF_REF_READY, self.half + (self.half - text_width) // 2, ready_y, Config.RIGHT_COLOR, font='bitmap6')
 
             self.update_score_and_clock()
+
+        # Drain again: a weapon still touching from the 2nd ready press must
+        # release before we return, or the very next main_loop() call reads
+        # that lingering contact as a brand-new touch (phantom score + beep).
+        while True:
+            left_valid, right_valid, _, _ = self.check()
+            if not left_valid and not right_valid:
+                break
 
         # Clear the full touch area once both are ready.
         time.sleep(Config.SELF_DENY_DELAY / 1000)
