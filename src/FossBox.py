@@ -480,8 +480,8 @@ class FossBox:
         left_deny = left_valid and left_presses >= 2
         right_deny = right_valid and right_presses >= 2
 
-        self.clear_score(self.left_score - 1, 'left')
-        self.clear_score(self.right_score - 1, 'right')
+        self.clear_score(self.left_score, 'left')
+        self.clear_score(self.right_score, 'right')
         if left_deny:
             self.left_score -= 1
         if right_deny:
