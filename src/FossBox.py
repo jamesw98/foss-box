@@ -366,8 +366,8 @@ class FossBox:
                 # since wait_for_ready() may redraw the score mid-pause.
                 self.check_for_self_deny(left_valid, right_valid)
             else:
-                self.clear_score(self.left_score - 1, 'left')
-                self.clear_score(self.right_score - 1, 'right')
+                self.clear_score(self.left_score, 'left')
+                self.clear_score(self.right_score, 'right')
 
         # Update the clock every second.
         if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
