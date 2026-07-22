@@ -25,7 +25,7 @@ BT_ID_ENABLED = True
 Bout related config
 """
 # How many periods should there be?
-MAX_PERIODS = 3
+MAX_PERIODS = 1
 # How long should the buzzer sound to signal the end of a period?
 PERIOD_OVER_BUZZER_SECONDS = 1
 # What message should be displayed at the end of the bout?
@@ -35,7 +35,7 @@ END_OF_BOUT_DELAY_SECONDS = 10
 # How long should the period break be in seconds?
 PERIOD_BREAK = 60
 # Clock start time, in seconds.
-CLOCK_SECONDS = 5
+CLOCK_SECONDS = 180
 
 """
 Self reffing config
@@ -53,7 +53,7 @@ SELF_DENY_HOLD_PAUSE_COLOR = (0, 255, 0)
 # How should we indicate that a fencer is ready in self reffing mode?
 SELF_REF_READY = 'ready'
 # What should the fencers fence to during self reffing?
-SELF_REF_SCORE_MAX = 15
+SELF_REF_SCORE_MAX = 5
 # Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
 SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
 # The minimum number of "flashes" for priority
@@ -119,4 +119,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.2"
+VERSION = "v1.1.5"
