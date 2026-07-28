@@ -119,4 +119,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.5"
+VERSION = "v1.1.6"
