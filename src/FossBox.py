@@ -333,6 +333,12 @@ class FossBox:
             if self_reffed and double and self.left_score == Config.SELF_REF_SCORE_MAX - 1 and self.right_score == Config.SELF_REF_SCORE_MAX - 1 and self.current_period == Config.MAX_PERIODS:
                 should_score = False
 
+            # Remember the pre-increment scores so the old digit's width is
+            # used when clearing below, since clearing with the new digit's
+            # width can leave old pixels behind if the two widths differ.
+            old_left_score = self.left_score
+            old_right_score = self.right_score
+
             # If we have any valid touches, light up the box.
             if left_valid or double:
                 self.light("left")
@@ -364,10 +370,10 @@ class FossBox:
                 # check_for_self_deny() already resolves any deny decision and
                 # resyncs the display before it returns (see resolve_self_deny()),
                 # since wait_for_ready() may redraw the score mid-pause.
-                self.check_for_self_deny(left_valid, right_valid)
+                self.check_for_self_deny(left_valid, right_valid, old_left_score, old_right_score)
             else:
-                self.clear_score(self.left_score, 'left')
-                self.clear_score(self.right_score, 'right')
+                self.clear_score(old_left_score, 'left')
+                self.clear_score(old_right_score, 'right')
 
         # Update the clock every second.
         if self.clock_running and Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000 and self.clock_seconds > 0:
@@ -413,7 +419,7 @@ class FossBox:
     their second (denying) press, pauses the bout and re-enters the waiting
     for ready flow.
     """
-    def check_for_self_deny(self, left_valid, right_valid):
+    def check_for_self_deny(self, left_valid, right_valid, old_left_score, old_right_score):
         deny_elapsed = 0
         last_tick = Utils.ticks_ms()
         left_presses = 0
@@ -447,7 +453,7 @@ class FossBox:
                 self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
                 self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
                 self.disp.update()
-                return self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses)
+                return self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses, old_left_score, old_right_score)
 
             bar_width = self.width * (deny_ms - deny_elapsed) // deny_ms
             self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
@@ -465,7 +471,7 @@ class FossBox:
                 self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
                 self.disp.update()
 
-                left_deny, right_deny = self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses)
+                left_deny, right_deny = self.resolve_self_deny(left_valid, right_valid, left_presses, right_presses, old_left_score, old_right_score)
 
                 self.clock_running = False
                 self.wait_for_ready()
@@ -476,12 +482,17 @@ class FossBox:
     resyncs the display to the final values immediately, before wait_for_ready()
     (or anything else) redraws the score again without clearing first.
     """
-    def resolve_self_deny(self, left_valid, right_valid, left_presses, right_presses):
+    def resolve_self_deny(self, left_valid, right_valid, left_presses, right_presses, old_left_score, old_right_score):
         left_deny = left_valid and left_presses >= 2
         right_deny = right_valid and right_presses >= 2
 
-        self.clear_score(self.left_score, 'left')
-        self.clear_score(self.right_score, 'right')
+        # Clear using the pre-increment scores: the screen still shows the old
+        # digit at this point (nothing redraws it during the deny/hold wait),
+        # so clearing with the already-incremented self.*_score would size the
+        # clear rect for the new digit while the old (possibly wider) digit is
+        # what's actually on screen, leaving remnants behind.
+        self.clear_score(old_left_score, 'left')
+        self.clear_score(old_right_score, 'right')
         if left_deny:
             self.left_score -= 1
         if right_deny:
