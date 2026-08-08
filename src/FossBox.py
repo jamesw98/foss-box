@@ -330,7 +330,7 @@ class FossBox:
 
         if any_valid:
             should_score = True
-            if self_reffed and double and self.left_score == Config.SELF_REF_SCORE_MAX - 1 and self.right_score == Config.SELF_REF_SCORE_MAX - 1 and self.current_period == Config.MAX_PERIODS:
+            if self_reffed and double and self.left_score == Config.SELF_REF_SCORE_MAX - 1 and self.right_score == Config.SELF_REF_SCORE_MAX - 1:
                 should_score = False
 
             # Remember the pre-increment scores so the old digit's width is
@@ -678,14 +678,37 @@ class FossBox:
                     self.clock_seconds = Config.PERIOD_BREAK
                     self.clock_running = True
 
+                    # Both fencers can double-press their weapon to skip the rest of
+                    # the break early, same pip mechanic as wait_for_ready().
+                    left_presses = 0
+                    right_presses = 0
+                    prev_left = False
+                    prev_right = False
+                    pip_y = (self.forth - 4) // 2 - 4
+
                     self.last_tick = Utils.ticks_ms()
-                    while self.clock_seconds > 0:
+                    while self.clock_seconds > 0 and (left_presses < 2 or right_presses < 2):
                         if Utils.ticks_diff(Utils.ticks_ms(), self.last_tick) >= 1000:
                             self.clear_clock()
                             self.clock_seconds -= 1
                             self.last_tick = Utils.ticks_add(self.last_tick, 1000)
                             self.clock = Utils.format_clock(self.clock_seconds)
+
+                        left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
+                        self.draw_pips(left_presses, right_presses, pip_y)
+
                         self.update_score_and_clock()
+
+                    # Drain: a weapon still touching from the skip press must release
+                    # before we continue, or the next check() call reads that lingering
+                    # contact as a brand-new touch.
+                    while True:
+                        left_valid, right_valid, _, _ = self.check()
+                        if not left_valid and not right_valid:
+                            break
+
+                    self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+                    self.disp.update()
 
                     self.clock_running = False
                     self.clock_seconds = Config.CLOCK_SECONDS
