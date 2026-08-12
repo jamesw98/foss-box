@@ -41,7 +41,7 @@ CLOCK_SECONDS = 180
 Self reffing config
 """
 # How long the fencers have to deny a touch in self reffing mode.
-SELF_DENY_DELAY = 5000
+SELF_DENY_DELAY = 4000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
 # How long a fencer must hold their weapon down after self-denying before the bout pauses, in ms.
