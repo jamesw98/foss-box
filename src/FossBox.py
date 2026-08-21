@@ -587,16 +587,62 @@ class FossBox:
         self.disp.update()
 
     """
-    Displays the end of bout message and resets the bout. 
+    Falling confetti animation shown in place of the end-of-bout message to
+    celebrate the finished bout. Runs for duration_seconds, then clears
+    the area it animated in.
+    """
+    def confetti(self, duration_seconds):
+        field_y = 0
+        field_h = self.forth
+        particle_h = 2
+        count = min(int(Config.CONFETTI_BASE_COUNT * Config.CONFETTI_MULTIPLIER), self.width)
+        colors = Config.CONFETTI_COLORS
+
+        self.disp.fill_rect(0, field_y, self.width, field_h, Config.BLACK)
+        self.disp.update()
+
+        xs = [random.randint(0, self.width - 1) for _ in range(count)]
+        ys = [random.randint(-field_h, 0) for _ in range(count)]
+        speeds = [random.randint(1, 2) for _ in range(count)]
+        particle_colors = [random.choice(colors) for _ in range(count)]
+
+        start = Utils.ticks_ms()
+        duration_ms = duration_seconds * 1000
+        while Utils.ticks_diff(Utils.ticks_ms(), start) < duration_ms:
+            for i in range(count):
+                if -particle_h < ys[i] < field_h:
+                    self.disp.fill_rect(xs[i], field_y + max(ys[i], 0), 1, particle_h, Config.BLACK)
+
+                ys[i] += speeds[i]
+                if ys[i] + particle_h > field_h:
+                    ys[i] = -particle_h
+                    xs[i] = random.randint(0, self.width - 1)
+                    speeds[i] = random.randint(1, 2)
+                    particle_colors[i] = random.choice(colors)
+
+                if -particle_h < ys[i] < field_h:
+                    self.disp.fill_rect(xs[i], field_y + max(ys[i], 0), 1, particle_h, particle_colors[i])
+
+            self.disp.update()
+            time.sleep(0.08)
+
+        self.disp.fill_rect(0, field_y, self.width, field_h, Config.BLACK)
+        self.disp.update()
+
+    """
+    Displays the end of bout message and resets the bout.
     """
     def end_bout(self):
-        msg = Config.END_OF_BOUT_MSG
-        msg_width = self.disp.measure_text(msg, 1, font='bitmap6')
-        self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
-        self.disp.draw_text(msg, (self.width - msg_width) // 2, (self.forth - 6) // 2, Config.GROUND_COLOR,
-                            font='bitmap6')
-        self.disp.update()
-        time.sleep(Config.END_OF_BOUT_DELAY_SECONDS)
+        if Config.CONFETTI_ENABLED:
+            self.confetti(Config.END_OF_BOUT_DELAY_SECONDS)
+        else:
+            msg = Config.END_OF_BOUT_MSG
+            msg_width = self.disp.measure_text(msg, 1, font='bitmap6')
+            self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+            self.disp.draw_text(msg, (self.width - msg_width) // 2, (self.forth - 6) // 2, Config.GROUND_COLOR,
+                                font='bitmap6')
+            self.disp.update()
+            time.sleep(Config.END_OF_BOUT_DELAY_SECONDS)
 
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.update()

@@ -32,6 +32,13 @@ PERIOD_OVER_BUZZER_SECONDS = 1
 END_OF_BOUT_MSG = "End of bout!"
 # How long should we wait at the end of a bout before starting the next one?
 END_OF_BOUT_DELAY_SECONDS = 10
+# Should we play a confetti animation at the end of a self-reffed bout?
+CONFETTI_ENABLED = True
+# Base number of confetti particles to animate.
+CONFETTI_BASE_COUNT = 12
+# Multiplier applied to CONFETTI_BASE_COUNT to get the final particle count. Turn up for a denser
+# celebration, down for a sparser one.
+CONFETTI_MULTIPLIER = 1
 # How long should the period break be in seconds?
 PERIOD_BREAK = 60
 # Clock start time, in seconds.
@@ -101,6 +108,9 @@ GROUND_COLOR = (255, 100, 0)
 BT_CONNECTED_COLOR = (0, 80, 255)
 UNLIT_PIP_COLOR = (80, 80, 80)
 LIT_PIP_COLOR = (255, 100, 0)
+# Colors confetti particles are randomly drawn from. Reuses colors already in
+# use elsewhere so it doesn't grow the display's color palette.
+CONFETTI_COLORS = [LEFT_COLOR, RIGHT_COLOR, GROUND_COLOR, BT_CONNECTED_COLOR]
 
 """
 :)
@@ -119,4 +129,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.8"
+VERSION = "v1.1.9"
