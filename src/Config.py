@@ -63,6 +63,13 @@ SELF_REF_READY = 'ready'
 SELF_REF_SCORE_MAX = 5
 # Presets to cycle through on the splash screen, as (max_score, max_periods) pairs.
 SELF_REF_PRESETS = [(5, 1), (10, 2), (15, 3)]
+# Should the passivity countdown timer be shown during self reffing bouts?
+PASSIVITY_TIMER_ENABLED = True
+# How long a fencer has before a passivity warning is shown, in seconds. Mirrors epee's 1-minute
+# passivity rule, but for now only shows a "P-Card" warning -- no penalty is applied yet.
+PASSIVITY_TIMER_SECONDS = 60
+# What text should be shown during the passivity warning window?
+PASSIVITY_CARD_TEXT = "P-Card"
 # The minimum number of "flashes" for priority
 PRIORITY_LOWER_BOUND = 5
 # The maximum number of "flashes" for priority
@@ -129,4 +136,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.9"
+VERSION = "v1.1.10"
