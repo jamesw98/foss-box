@@ -246,12 +246,33 @@ class FossBox:
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
 
+    """
+    Draws a dot per self-ref preset on the splash screen, lighting the one
+    matching preset_index (none lit if it's None). Some presets share values
+    with the current defaults, so the ms/mp text alone doesn't always change
+    when a preset is selected -- these dots give a visible confirmation that
+    a touch registered even when the text doesn't.
+    """
+    def draw_splash_preset_pips(self, preset_index):
+        pip_size = 2
+        pip_gap = 2
+        count = len(Config.SELF_REF_PRESETS)
+        total_w = count * pip_size + (count - 1) * pip_gap
+        start_x = (self.width - total_w) // 2
+        pip_y = self.height - 3 - Config.SPLASH_COUNTDOWN_HEIGHT - pip_size
+
+        for i in range(count):
+            color = Config.LIT_PIP_COLOR if i == preset_index else Config.UNLIT_PIP_COLOR
+            self.disp.fill_rect(start_x + i * (pip_size + pip_gap), pip_y, pip_size, pip_size, color)
+
     def display_splash_screen(self):
         max_score = Config.SELF_REF_SCORE_MAX
         max_periods = Config.MAX_PERIODS
         preset_index = None
 
         self.draw_splash_text(max_score, max_periods)
+        if self.mode == Utils.SelfRef:
+            self.draw_splash_preset_pips(preset_index)
         self.disp.update()
 
         start = Utils.ticks_ms()
@@ -280,6 +301,8 @@ class FossBox:
                     preset_index = 0 if preset_index is None else (preset_index + 1) % len(Config.SELF_REF_PRESETS)
                     max_score, max_periods = Config.SELF_REF_PRESETS[preset_index]
                     self.draw_splash_text(max_score, max_periods)
+                    self.draw_splash_preset_pips(preset_index)
+                    self.disp.update()
                     last_cycle = now
                     # Reset the countdown so selecting a preset doesn't eat into the splash duration.
                     start = now
