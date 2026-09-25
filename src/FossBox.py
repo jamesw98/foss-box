@@ -33,6 +33,7 @@ class FossBox:
         self.clock_running = False
         self.current_period = 0
         self.priority = False
+        self.passivity_start = Utils.ticks_ms()
 
         self.bt = None
         self.bt_was_connected = False
@@ -245,12 +246,33 @@ class FossBox:
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.draw_text(splash, 0, 0, Config.GROUND_COLOR, font="bitmap6")
 
+    """
+    Draws a dot per self-ref preset on the splash screen, lighting the one
+    matching preset_index (none lit if it's None). Some presets share values
+    with the current defaults, so the ms/mp text alone doesn't always change
+    when a preset is selected -- these dots give a visible confirmation that
+    a touch registered even when the text doesn't.
+    """
+    def draw_splash_preset_pips(self, preset_index):
+        pip_size = 2
+        pip_gap = 2
+        count = len(Config.SELF_REF_PRESETS)
+        total_w = count * pip_size + (count - 1) * pip_gap
+        start_x = (self.width - total_w) // 2
+        pip_y = self.height - 3 - Config.SPLASH_COUNTDOWN_HEIGHT - pip_size
+
+        for i in range(count):
+            color = Config.LIT_PIP_COLOR if i == preset_index else Config.UNLIT_PIP_COLOR
+            self.disp.fill_rect(start_x + i * (pip_size + pip_gap), pip_y, pip_size, pip_size, color)
+
     def display_splash_screen(self):
         max_score = Config.SELF_REF_SCORE_MAX
         max_periods = Config.MAX_PERIODS
         preset_index = None
 
         self.draw_splash_text(max_score, max_periods)
+        if self.mode == Utils.SelfRef:
+            self.draw_splash_preset_pips(preset_index)
         self.disp.update()
 
         start = Utils.ticks_ms()
@@ -279,7 +301,11 @@ class FossBox:
                     preset_index = 0 if preset_index is None else (preset_index + 1) % len(Config.SELF_REF_PRESETS)
                     max_score, max_periods = Config.SELF_REF_PRESETS[preset_index]
                     self.draw_splash_text(max_score, max_periods)
+                    self.draw_splash_preset_pips(preset_index)
+                    self.disp.update()
                     last_cycle = now
+                    # Reset the countdown so selecting a preset doesn't eat into the splash duration.
+                    start = now
                 prev_left, prev_right = left_valid, right_valid
 
         if self.mode == Utils.SelfRef and preset_index is not None:
@@ -288,6 +314,16 @@ class FossBox:
 
         self.disp.fill_rect(0, 0, self.width, self.height, Config.BLACK)
         self.disp.update()
+
+    """
+    Resumes the main clock, and resets the passivity countdown along with it
+    since both mark the start of a fresh period of fencing.
+    """
+    def start_clock(self):
+        now = Utils.ticks_ms()
+        self.last_tick = now
+        self.clock_running = True
+        self.passivity_start = now
 
     def light(self, side):
         if side == "left":
@@ -351,6 +387,8 @@ class FossBox:
 
             # Stop the clock.
             self.clock_running = False
+            if self_reffed and Config.PASSIVITY_TIMER_ENABLED:
+                self.clear_passivity_bar()
             # If we have BT enabled, send the clock info to the PWA.
             if self.bt:
                 hi = (self.clock_seconds >> 8) & 0xFF
@@ -382,8 +420,93 @@ class FossBox:
             self.last_tick = Utils.ticks_add(self.last_tick, 1000)
             self.clock = Utils.format_clock(self.clock_seconds)
 
+        if self_reffed and Config.PASSIVITY_TIMER_ENABLED and self.clock_running:
+            self.update_passivity_bar()
+
         self.update_score_and_clock()
         return any_valid
+
+    """
+    Draws the passivity countdown bar. Shares the self deny bar's row and
+    color since the two are never shown at the same time: this only runs
+    while the main clock is counting down, and that's exactly when the self
+    deny window (which pauses the clock) can't be active.
+    """
+    def update_passivity_bar(self):
+        bar_h = Config.SELF_DENY_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        duration_ms = Config.PASSIVITY_TIMER_SECONDS * 1000
+        elapsed = min(Utils.ticks_diff(Utils.ticks_ms(), self.passivity_start), duration_ms)
+        bar_width = self.width * (duration_ms - elapsed) // duration_ms
+        self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+        self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
+
+    """
+    Clears the passivity countdown bar.
+    """
+    def clear_passivity_bar(self):
+        bar_h = Config.SELF_DENY_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+        self.disp.update()
+
+    """
+    Displays the passivity card warning for SELF_DENY_DELAY ms. Mirrors the
+    self deny countdown window's bar, but skips the pips/hold-pause logic
+    since there's no touch to deny here.
+    """
+    def show_passivity_card(self):
+        text = Config.PASSIVITY_CARD_TEXT
+        text_width = self.disp.measure_text(text, 1, font='bitmap6')
+        x = (self.width - text_width) // 2
+        y = (self.forth - 6) // 2
+        self.disp.draw_text(text, x, y, Config.GROUND_COLOR, font='bitmap6')
+
+        bar_h = Config.SELF_DENY_COUNTDOWN_HEIGHT
+        bar_y = self.height - bar_h
+        deny_ms = Config.SELF_DENY_DELAY
+        start = Utils.ticks_ms()
+
+        while True:
+            now = Utils.ticks_ms()
+            elapsed = Utils.ticks_diff(now, start)
+            if elapsed >= deny_ms:
+                break
+
+            bar_width = self.width * (deny_ms - elapsed) // deny_ms
+            self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+            self.disp.fill_rect(0, bar_y, bar_width, bar_h, Config.GROUND_COLOR)
+            self.disp.update()
+
+        self.disp.fill_rect(0, 0, self.width, self.forth, Config.BLACK)
+        self.disp.fill_rect(0, bar_y, self.width, bar_h, Config.BLACK)
+        self.disp.update()
+
+    """
+    Checks whether a full minute (PASSIVITY_TIMER_SECONDS) has passed without
+    a touch while the clock is running. If it has, treats it like a halt:
+    beeps as if a touch occurred, shows the passivity card warning, then
+    resumes the clock. Returns True if a passivity warning was triggered.
+    """
+    def check_passivity(self):
+        if not Config.PASSIVITY_TIMER_ENABLED or not self.clock_running:
+            return False
+
+        elapsed = Utils.ticks_diff(Utils.ticks_ms(), self.passivity_start)
+        if elapsed < Config.PASSIVITY_TIMER_SECONDS * 1000:
+            return False
+
+        self.clock_running = False
+        self.clear_passivity_bar()
+        self.disp.beeper_on()
+        time.sleep(Config.ILLUM_TIME)
+        self.disp.beeper_off()
+
+        self.show_passivity_card()
+
+        self.enguarde_ready_fence()
+        self.start_clock()
+        return True
 
     """
     Draws the pips for self denying touches or starting the bout.
@@ -653,11 +776,10 @@ class FossBox:
         self.current_period = 1
         self.wait_for_ready()
         self.enguarde_ready_fence()
-        self.last_tick = Utils.ticks_ms()
-        self.clock_running = True
+        self.start_clock()
 
     """
-    Randomly chooses priority. 
+    Randomly chooses priority.
     """
     def pick_priority(self):
         sides = ["left", "right"]
@@ -686,8 +808,7 @@ class FossBox:
 
         # Beep en guarde, ready? fence.
         self.enguarde_ready_fence()
-        self.last_tick = Utils.ticks_ms()
-        self.clock_running = True
+        self.start_clock()
 
         while True:
             self.bt_check()
@@ -700,12 +821,15 @@ class FossBox:
                     continue
 
                 self.enguarde_ready_fence()
-                self.last_tick = Utils.ticks_ms()
-                self.clock_running = True
+                self.start_clock()
+            elif self.check_passivity():
+                continue
 
             # If the timer runs out, give a break period, then start the next period
             if self.clock_seconds == 0:
                 self.clock_running = False
+                if Config.PASSIVITY_TIMER_ENABLED:
+                    self.clear_passivity_bar()
                 self.disp.beeper_on()
                 time.sleep(Config.PERIOD_OVER_BUZZER_SECONDS)
                 self.disp.beeper_off()
@@ -762,14 +886,11 @@ class FossBox:
                     self.current_period += 1
 
                 self.wait_for_ready()
-                self.last_tick = Utils.ticks_ms()
-                self.clock_running = True
-
                 self.enguarde_ready_fence()
-                self.clock_running = True
+                self.start_clock()
 
     """
-    Runs the selected mode. 
+    Runs the selected mode.
     """
     def run(self):
         # self.pick_priority()
