@@ -76,6 +76,13 @@ def config_check():
     if "buzzer" not in config or Config.RT_CONF_OVERWRITE:
         config["buzzer"] = Config.BUZZER_PIN
         updated = True
+    if "bt_id" not in config or Config.RT_CONF_OVERWRITE:
+        config["bt_id"] = Config.BLUETOOTH_ID
+        updated = True
+
+    # The BT ID saved on the box wins over Config.py, so pushing a shared Config.py
+    # to multiple boxes doesn't give them all the same ID.
+    Config.BLUETOOTH_ID = config["bt_id"]
 
     if updated:
         json_save_runtime_config(config)

@@ -25,7 +25,7 @@ Note: At the time of writing the FossBox is epee only.
 ## 1. Edit the config
 Make any changes to `Config.py` that you need. Most likely you'll need to change the GPIO pins for the weapon and bells.  
 
-I would also recommend changing `BLUETOOTH_ID` if you have more than one box  
+I would also recommend changing `BLUETOOTH_ID` if you have more than one box. The ID is saved to `runtime_config.json` on the box the first time it boots, so later updates to `Config.py` won't change it unless `RT_CONF_OVERWRITE` is set to `True`.  
   
 ## 2. Get your controller ready    
 ### 2a. Pimoroni Interstate75W

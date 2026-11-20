@@ -332,6 +332,15 @@ class FossBox:
             self.disp.fill_rect(self.half, 0, self.half, self.forth, Config.RIGHT_COLOR)
 
     """
+    Draws the orange ground indicator strip on the edge of each side whose bell
+    guard is being touched, and blacks out the strip on sides that aren't.
+    Doesn't call update(), so callers can batch it with other drawing.
+    """
+    def draw_bell_indicator(self, left_bell, right_bell):
+        self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR if left_bell else Config.BLACK)
+        self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR if right_bell else Config.BLACK)
+
+    """
     Main logic of the box. 
     """
     def main_loop(self, self_reffed=False):
@@ -342,10 +351,7 @@ class FossBox:
 
         # Display orange ground indicator when bell is pressed (one frame, then clear).
         if left_bell or right_bell:
-            if left_bell:
-                self.disp.fill_rect(0, 0, 3, self.forth, Config.GROUND_COLOR)
-            if right_bell:
-                self.disp.fill_rect(self.width - 3, 0, 3, self.forth, Config.GROUND_COLOR)
+            self.draw_bell_indicator(left_bell, right_bell)
             self.disp.update()
             self.clear_lights()
 
@@ -685,6 +691,7 @@ class FossBox:
             self.bt_check()
             left_presses, right_presses, prev_left, prev_right = self.poll_weapon_presses(left_presses, right_presses, prev_left, prev_right)
             self.draw_pips(left_presses, right_presses, pip_y)
+            self.draw_bell_indicator(self.bell_left(), self.bell_right())
 
             if left_presses >= 2:
                 text_width = self.disp.measure_text(Config.SELF_REF_READY, 1, font='bitmap6')

@@ -13,6 +13,8 @@ Bluetooth Config
 """
 # Bluetooth box ID. The box will appear as "FossBox_<id>" in the PWA Bluetooth menu. This can *technically* be anything
 # but, it will appear on the box in the bottom right corner until a BT connection is made, so don't make it too long.
+# This is only used the first time the box boots; after that the ID saved in runtime_config.json on the box is used.
+# Set RT_CONF_OVERWRITE to True to replace the saved ID with this one.
 BLUETOOTH_ID = "315"
 # Should BT be enabled? I would not recommend disabling this.
 BLUETOOTH_ENABLED = True
@@ -48,7 +50,7 @@ CLOCK_SECONDS = 180
 Self reffing config
 """
 # How long the fencers have to deny a touch in self reffing mode.
-SELF_DENY_DELAY = 4000
+SELF_DENY_DELAY = 3000
 # How tall should the self deny timer countdown bar be in pixels?
 SELF_DENY_COUNTDOWN_HEIGHT = 1
 # How long a fencer must hold their weapon down after self-denying before the bout pauses, in ms.
@@ -100,7 +102,7 @@ SPLASH_DURATION = 3
 SPLASH_COUNTDOWN_HEIGHT = 1
 # Minimum delay in ms between preset cycles on the splash screen, to debounce a held touch.
 SPLASH_CYCLE_DELAY = 400
-# Danger! Should we overwrite the runtime config for GPIO pins?
+# Danger! Should we overwrite the runtime config (GPIO pins and BT ID) with the values in this file?
 RT_CONF_OVERWRITE = False
 
 """
@@ -136,4 +138,4 @@ EASTER_EGG_QUOTES = [
     "Harry, is\nthat bag\nsmiling?"
 ]
 
-VERSION = "v1.1.10"
+VERSION = "v1.1.11"
